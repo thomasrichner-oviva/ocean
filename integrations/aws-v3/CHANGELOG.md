@@ -5,15 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
 <!-- towncrier release notes start -->
 
-## 2.1.64-beta (2026-03-22)
+## 2.1.67-beta (2026-03-31)
 
 
 ### Improvements
 
 - Added explicit Literal kind definitions per AWS resource kind
+
+
+## 2.1.66-beta (2026-03-30)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.27
+
+
+## 2.1.65-beta (2026-03-25)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.24
+
+
+## 2.1.64-beta (2026-03-24)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.23
 
 
 ## 2.1.63-beta (2026-03-22)
