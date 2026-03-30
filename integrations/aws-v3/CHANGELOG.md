@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improvements
 
-- Added explicit Literal kind definitions per AWS resource kind
+- Adopted generic AWSResourceConfig approach for resource kind definitions, replacing explicit per-kind models with a single configurable resource config
 
 
 ## 2.1.66-beta (2026-03-30)
