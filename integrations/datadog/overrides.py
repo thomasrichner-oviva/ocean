@@ -20,7 +20,7 @@ class SLOHistorySelector(Selector):
     )
     period_of_time_in_months: int = Field(
         alias="periodOfTimeInMonths",
-        default=12,
+        default=6,
         title="Period of Time in Months",
         description="How far back in time to fetch SLO history (1-12 months).",
     )
@@ -60,7 +60,9 @@ class SLOHistorySelector(Selector):
         return v
 
     @validator("period_of_time_in_days")
-    def validate_period_of_time_in_days(cls, v: int) -> int:
+    def validate_period_of_time_in_days(cls, v: Optional[int]) -> Optional[int]:
+        if v is None:
+            return v
         if v < 1 or v > 365:
             logger.warning(
                 f"The selector value 'periodOfTimeInDays' ({v}) must be between 1 and 365. "
