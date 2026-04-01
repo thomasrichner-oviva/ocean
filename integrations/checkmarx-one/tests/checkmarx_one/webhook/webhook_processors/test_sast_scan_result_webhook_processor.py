@@ -547,7 +547,7 @@ class TestSastScanResultWebhookProcessor:
             kind="sast",
             selector=CheckmarxOneSastSelector(
                 query="true",
-                scan_filter=CheckmarxOneScanModel(latestScansOnly=True),
+                scanFilter=CheckmarxOneScanModel(latestScansOnly=True),
             ),
             port=PortResourceConfig(
                 entity=MappingsConfig(
@@ -625,7 +625,7 @@ class TestSastScanResultWebhookProcessor:
             kind="sast",
             selector=CheckmarxOneSastSelector(
                 query="true",
-                scan_filter=CheckmarxOneScanModel(latestScansOnly=True),
+                scanFilter=CheckmarxOneScanModel(latestScansOnly=True),
             ),
             port=PortResourceConfig(
                 entity=MappingsConfig(
