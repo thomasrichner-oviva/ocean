@@ -50,6 +50,7 @@ class CheckmarxOneResultSelector(Selector):
     scan_filter: CheckmarxOneScanModel = Field(
         default=CheckmarxOneScanModel(),
         description="Filter scan results by scan",
+        alias="scanFilter",
     )
     severity: Optional[List[Literal["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]]] = (
         Field(
@@ -86,6 +87,7 @@ class CheckmarxOneSastSelector(Selector):
     scan_filter: CheckmarxOneScanModel = Field(
         default=CheckmarxOneScanModel(),
         description="Filter scan results by scan",
+        alias="scanFilter",
     )
     compliance: Optional[str] = Field(
         default=None,
@@ -141,6 +143,7 @@ class CheckmarxOneApiSecSelector(Selector):
     scan_filter: CheckmarxOneScanModel = Field(
         default=CheckmarxOneScanModel(),
         description="Filter scan results by scan",
+        alias="scanFilter",
     )
 
 
@@ -166,6 +169,7 @@ class CheckmarxOneKicsSelector(Selector):
     scan_filter: CheckmarxOneScanModel = Field(
         default=CheckmarxOneScanModel(),
         description="Filter scan results by scan",
+        alias="scanFilter",
     )
     severity: Optional[List[Literal["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]]] = (
         Field(
