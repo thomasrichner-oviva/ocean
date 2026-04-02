@@ -384,6 +384,13 @@ class CheckmarxOneApplicationResourcesConfig(ResourceConfig):
     )
 
 
+class CheckmarxOneProjectResourcesConfig(ResourceConfig):
+    kind: Literal["project"] = Field(
+        title="Checkmarx Project",
+        description="A project defined in Checkmarx One",
+    )
+
+
 class CheckmarxOnePortAppConfig(PortAppConfig):
     resources: list[
         CheckmarxOneScanResourcesConfig
@@ -396,9 +403,8 @@ class CheckmarxOnePortAppConfig(PortAppConfig):
         | CheckmarxOneDastScanResourcesConfig
         | CheckmarxOneDastScanResultResourcesConfig
         | CheckmarxOneApplicationResourcesConfig
-    ] = Field(
-        default_factory=list
-    )  # type: ignore[assignment]
+        | CheckmarxOneProjectResourcesConfig
+    ] = Field(default_factory=list)  # type: ignore[assignment]
 
 
 class CheckmarxOneIntegration(BaseIntegration):
