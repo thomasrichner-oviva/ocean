@@ -1,4 +1,4 @@
-from typing import ClassVar, Literal, Optional, List
+from typing import Literal, Optional, List
 from pydantic import BaseModel
 
 from port_ocean.core.handlers.port_app_config.api import APIPortAppConfig
@@ -17,23 +17,27 @@ class CheckmarxOneScanModel(BaseModel):
     project_names: List[str] = Field(
         default_factory=list,
         alias="projectIds",
+        title="Project Names",
         description="Filter scans by their project name",
     )
     branches: Optional[List[str]] = Field(
         default=None,
+        title="Branches",
         description="Filter results by the name of the Git branch that was scanned.",
     )
     statuses: Optional[
         List[Literal["Queued", "Running", "Completed", "Failed", "Partial", "Canceled"]]
     ] = Field(
         default=None,
+        title="Statuses",
         description="Filter results by the execution status of the scans. (Case insensitive, OR operator for multiple statuses.)",
     )
     since: Optional[int] = Field(
         ge=1,
         le=90,
         default=90,
-        description="Filter results by the date and time when the scan was created. (UNIX timestamp in seconds)",
+        title="Since (Days)",
+        description="Filter results to scans created within the last N days (1–90).",
     )
 
     @property
@@ -44,11 +48,13 @@ class CheckmarxOneScanModel(BaseModel):
 class CheckmarxOneResultSelector(Selector):
     scan_filter: CheckmarxOneScanModel = Field(
         default=CheckmarxOneScanModel(),
+        title="Scan Filter",
         description="Filter scan results by scan",
     )
     severity: Optional[List[Literal["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]]] = (
         Field(
             default=None,
+            title="Severity",
             description="Filter scan results by severity level",
         )
     )
@@ -65,14 +71,17 @@ class CheckmarxOneResultSelector(Selector):
         ]
     ] = Field(
         default=None,
+        title="State",
         description="Filter scan results by state",
     )
     status: Optional[List[Literal["NEW", "RECURRENT", "FIXED"]]] = Field(
         default=None,
+        title="Status",
         description="Filter scan results by status",
     )
     exclude_result_types: Optional[Literal["DEV_AND_TEST", "NONE"]] = Field(
         default="NONE",
+        title="Exclude Result Types",
         description="Filter scan results by exclude result types",
     )
 
@@ -80,41 +89,50 @@ class CheckmarxOneResultSelector(Selector):
 class CheckmarxOneSastSelector(Selector):
     scan_filter: CheckmarxOneScanModel = Field(
         default=CheckmarxOneScanModel(),
+        title="Scan Filter",
         description="Filter scan results by scan",
     )
     compliance: Optional[str] = Field(
         default=None,
+        title="Compliance",
         description="Filter by compliance standard (exact match, case insensitive).",
     )
     group: Optional[str] = Field(
         default=None,
+        title="Group",
         description="Filter by vulnerability group (substring match).",
     )
     include_nodes: bool = Field(
         default=True,
+        title="Include Nodes",
         description="If true, include nodes data; if false, omit node data.",
     )
     language: Optional[List[str]] = Field(
         default=None,
+        title="Language",
         description="Filter by language (exact match, case insensitive).",
     )
     result_id: Optional[str] = Field(
         default=None,
+        title="Result ID",
         description="Filter by unique result hash.",
     )
     severity: Optional[List[Literal["critical", "high", "medium", "low", "info"]]] = (
         Field(
             default=None,
+            title="Severity",
             description="Filter by severity.",
         )
     )
     status: Optional[List[Literal["new", "recurrent", "fixed"]]] = Field(
         default=None,
+        title="Status",
         description="Filter by status.",
     )
     category: Optional[str] = Field(
         default=None,
-        description="Filter by comma separated list of categories.",
+        title="Category",
+        description="Filter by comma separated list of categories. (e.g. 'SQL_Injection,XSS')",
     )
     state: Optional[
         List[
@@ -128,6 +146,7 @@ class CheckmarxOneSastSelector(Selector):
         ]
     ] = Field(
         default=None,
+        title="State",
         description="Filter by state.",
     )
 
@@ -135,6 +154,7 @@ class CheckmarxOneSastSelector(Selector):
 class CheckmarxOneApiSecSelector(Selector):
     scan_filter: CheckmarxOneScanModel = Field(
         default=CheckmarxOneScanModel(),
+        title="Scan Filter",
         description="Filter scan results by scan",
     )
 
@@ -240,11 +260,13 @@ class CheckmarxOneDastScanModel(BaseModel):
     scan_type: Optional[Literal["DAST", "DASTAPI"]] = Field(
         alias="scanType",
         default=None,
+        title="Scan Type",
         description="Filter DAST scans by scan type",
     )
     since: Optional[int] = Field(
         ge=1,
         default=90,
+        title="Since (Days)",
         description="Filter results by number of days when they were last updated. (1-90 days)",
     )
     max_results: int = Field(
@@ -252,6 +274,7 @@ class CheckmarxOneDastScanModel(BaseModel):
         ge=1,
         le=3000,
         default=3000,
+        title="Max Results",
         description="Limit the number of DAST scans returned",
     )
 
@@ -283,11 +306,13 @@ class CheckmarxOneDastScanResultFilter(BaseModel):
     severity: Optional[List[Literal["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]]] = (
         Field(
             default=None,
+            title="Severity",
             description="Filter DAST scan results by severity",
         )
     )
     status: Optional[List[Literal["NEW", "RECURRENT"]]] = Field(
         default=None,
+        title="Status",
         description="Filter DAST scan results by status",
     )
     state: Optional[
@@ -302,6 +327,7 @@ class CheckmarxOneDastScanResultFilter(BaseModel):
         ]
     ] = Field(
         default=None,
+        title="State",
         description="Filter DAST scan results by state",
     )
 
@@ -309,10 +335,12 @@ class CheckmarxOneDastScanResultFilter(BaseModel):
 class CheckmarxOneDastScanResultSelector(Selector):
     dast_scan_filter: CheckmarxOneDastScanModel = Field(
         default=CheckmarxOneDastScanModel(),
+        title="DAST Scan Filter",
         description="Filter scan results by DAST scan",
     )
     filter: CheckmarxOneDastScanResultFilter = Field(
         default=CheckmarxOneDastScanResultFilter(),
+        title="Filter",
         description="Filter DAST scan results",
     )
 
@@ -334,12 +362,14 @@ class CheckmarxOneApplicationSelector(Selector):
     tag_keys: Optional[List[str]] = Field(
         default=None,
         alias="tagKeys",
-        description="Filter applications by tag keys",
+        title="Tag Keys",
+        description="Filter applications by tag keys (e.g. ['env', 'team'])",
     )
     tag_values: Optional[List[str]] = Field(
         default=None,
         alias="tagValues",
-        description="Filter applications by tag values",
+        title="Tag Values",
+        description="Filter applications by tag values (e.g. ['production', 'backend'])",
     )
 
 
@@ -354,10 +384,6 @@ class CheckmarxOneApplicationResourcesConfig(ResourceConfig):
     )
 
 
-class CustomResourceConfig(ResourceConfig):
-    kind: str = Field(title="Custom CheckmarxOne kinds", description="")
-
-
 class CheckmarxOnePortAppConfig(PortAppConfig):
     resources: list[
         CheckmarxOneScanResourcesConfig
@@ -370,9 +396,9 @@ class CheckmarxOnePortAppConfig(PortAppConfig):
         | CheckmarxOneDastScanResourcesConfig
         | CheckmarxOneDastScanResultResourcesConfig
         | CheckmarxOneApplicationResourcesConfig
-        | CustomResourceConfig
-    ] = Field(default_factory=list)
-    allow_custom_kinds: ClassVar[bool] = True
+    ] = Field(
+        default_factory=list
+    )  # type: ignore[assignment]
 
 
 class CheckmarxOneIntegration(BaseIntegration):
