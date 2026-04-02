@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-- Fix selector and kind propagation not working
+- Fix selector and kind propagation
 
 
 ## 0.1.330 (2026-03-30)
