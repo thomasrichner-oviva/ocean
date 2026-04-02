@@ -70,5 +70,5 @@
     "excludedFromPurge": true,
     "branchId": "fb707756-8fa5-41cf-8a74-1f32e892f0dc"
   },
-  "__link": "https://devtools-sonarqube-apps-01.stg-01-internal.getport.io/dashboard?id=sonarqube-integration"
+  "__link": "https://sonarqube.example.com/dashboard?id=sonarqube-integration"
 }
