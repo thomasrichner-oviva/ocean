@@ -6,6 +6,63 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!-- towncrier release notes start -->
+## 0.38.27 (2026-03-30)
+
+### Improvements
+
+- Updated GH token used in CI
+
+
+## 0.38.26 (2026-03-25)
+
+### Improvements
+
+- Migrated GHCR authentication across all CI workflows to use the org-level `PORT_MACHINE_USER_GITHUB_TOKEN` secret instead of `DOCKER_MACHINE_TOKEN`
+
+## 0.38.25 (2026-03-26)
+
+### Bug Fixes
+
+- Added `x-ratelimit-reset` to the list of retry-after headers checked by the Port HTTP transport, so that when Ocean receives a 429 from the Port API it waits until the rate-limit window resets instead of falling back to exponential backoff
+
+
+## 0.38.24 (2026-03-25)
+
+### Improvements
+
+- Enforced strict boundaries for entity_deletion_threshold, allowing only values between 0 and 1
+
+
+## 0.38.23 (2026-03-24)
+
+### Improvements
+
+- Revised descriptions for port-app-config root flags
+
+
+## 0.38.22 (2026-03-19)
+
+### Features
+
+- Traceable webhook retrieval: log incoming webhooks with base64-encoded payload and trace_id for debugging.
+
+## 0.38.21 (2026-03-19)
+
+### Features
+
+- Added /isHealth route to ocean core
+
+## 0.38.20 (2026-03-17)
+
+### Features
+
+- Added `originalWebhook` to lakehouse live events: the raw webhook payload is deep-copied before processing and included in `kafkaMetadata` when sending live event data to the lakehouse, ensuring the original inbound payload is preserved regardless of any mutations during processing.
+
+## 0.38.19 (2026-03-16)
+
+### Bug Fixes
+
+- Fixed overall sync status being stuck as `Syncing` instead of `Failed` when a resync fails during the transform phase of a specific kind. Initialized `__runtime__` and `__reconciliation__` success metrics to `0` before processing begins so their documents exist in the DB when `handle_resync_abortion` is triggered. Moved `metric_resource_context` and `resource_context` stacks `pop()` into `finally` blocks to guarantee context cleanup on error, preventing stale kind context from being used in subsequent metric updates.
 
 ## 0.38.18 (2026-03-16)
 
