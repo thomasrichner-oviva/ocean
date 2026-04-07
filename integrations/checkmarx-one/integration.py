@@ -198,16 +198,19 @@ class CheckmarxOneSastResourcesConfig(ResourceConfig):
 class CheckmarxOneKicsSelector(Selector):
     scan_filter: CheckmarxOneScanModel = Field(
         default=CheckmarxOneScanModel(),
+        title="Scan Filter",
         description="Filter scan results by scan",
     )
     severity: Optional[List[Literal["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]]] = (
         Field(
             default=None,
+            title="Severities",
             description="Filter KICS results by severity levels",
         )
     )
     status: Optional[List[Literal["NEW", "RECURRENT", "FIXED"]]] = Field(
         default=None,
+        title="Statuses",
         description="Filter KICS results by status",
     )
 
