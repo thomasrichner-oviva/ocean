@@ -209,6 +209,63 @@ async def test_get_application_by_name_with_namespace(
 
 
 @pytest.mark.asyncio
+async def test_get_application_by_name_with_params(
+    mock_argocd_client: ArgocdClient,
+) -> None:
+    application_name = "test-application"
+    request_params: dict[str, Any] = {"projects": ["default"], "repo": "test-repo"}
+    response_data = {
+        "metadata": {"name": "test-project", "uid": "test-uid"},
+    }
+
+    with patch.object(
+        mock_argocd_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = response_data
+        application = await mock_argocd_client.get_application_by_name(
+            name=application_name,
+            params=request_params,
+        )
+        assert application == response_data
+        mock_request.assert_called_once_with(
+            url=f"{mock_argocd_client.api_url}/{ResourceKindsWithSpecialHandling.APPLICATION}s/{application_name}",
+            query_params=request_params,
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_application_by_name_with_namespace_and_params(
+    mock_argocd_client: ArgocdClient,
+) -> None:
+    application_name = "test-application"
+    application_namespace = "test-namespace"
+    request_params: dict[str, Any] = {"projects": ["default"], "repo": "test-repo"}
+    expected_query_params = {
+        "projects": ["default"],
+        "repo": "test-repo",
+        "appNamespace": application_namespace,
+    }
+    response_data = {
+        "metadata": {"name": "test-project", "uid": "test-uid"},
+    }
+
+    with patch.object(
+        mock_argocd_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = response_data
+        application = await mock_argocd_client.get_application_by_name(
+            name=application_name,
+            namespace=application_namespace,
+            params=request_params,
+        )
+        assert application == response_data
+        mock_request.assert_called_once_with(
+            url=f"{mock_argocd_client.api_url}/{ResourceKindsWithSpecialHandling.APPLICATION}s/{application_name}",
+            query_params=expected_query_params,
+        )
+
+
+@pytest.mark.asyncio
 async def test_get_deployment_history(mock_argocd_client: ArgocdClient) -> None:
     response_data = {
         "items": [

@@ -1,27 +1,14 @@
 from typing import cast
-from fastapi import Request
 from loguru import logger
 from port_ocean.context.event import event
 from port_ocean.core.ocean_types import ASYNC_GENERATOR_RESYNC_TYPE
 
-from client import ArgocdClient
 from integration import ApplicationResourceConfig, ManagedResourceResourceConfig
-from misc import ResourceKindsWithSpecialHandling, ObjectKind
+from misc import ResourceKindsWithSpecialHandling, ObjectKind, init_client
 from port_ocean.context.ocean import ocean
 from webhooks.webhook_processor.application_webhook_processor import (
     ArgocdApplicationWebhookProcessor,
 )
-
-
-def init_client() -> ArgocdClient:
-    return ArgocdClient(
-        ocean.integration_config["token"],
-        ocean.integration_config["server_url"],
-        ocean.integration_config["ignore_server_error"],
-        ocean.integration_config["allow_insecure"],
-        ocean.integration_config["custom_http_headers"],
-        ocean.config.streaming.enabled,
-    )
 
 
 @ocean.on_resync()

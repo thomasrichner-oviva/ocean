@@ -9,9 +9,8 @@ from port_ocean.core.handlers.webhook.webhook_event import (
 from port_ocean.core.handlers.port_app_config.models import ResourceConfig
 from port_ocean.core.handlers.webhook.webhook_event import WebhookEventRawResults
 from loguru import logger
-from argocd.misc import ResourceKindsWithSpecialHandling
-from argocd.main import init_client
-from argocd.integration import ApplicationResourceConfig
+from integration import ApplicationResourceConfig
+from misc import ResourceKindsWithSpecialHandling, init_client
 from typing import cast
 
 
