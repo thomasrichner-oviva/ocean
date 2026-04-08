@@ -8,6 +8,9 @@ from client import ArgocdClient
 from integration import ApplicationResourceConfig, ManagedResourceResourceConfig
 from misc import ResourceKindsWithSpecialHandling, ObjectKind
 from port_ocean.context.ocean import ocean
+from webhooks.webhook_processor.application_webhook_processor import (
+    ArgocdApplicationWebhookProcessor,
+)
 
 
 def init_client() -> ArgocdClient:
@@ -95,17 +98,4 @@ async def on_managed_resources_resync(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
                     yield managed_resources
 
 
-@ocean.router.post("/webhook")
-async def on_application_event_webhook_handler(request: Request) -> None:
-    data = await request.json()
-    logger.debug(f"received webhook event data: {data}")
-    argocd_client = init_client()
-
-    if data["action"] == "upsert":
-        application = await argocd_client.get_application_by_name(
-            data["application_name"],
-            namespace=data.get("application_namespace"),
-        )
-        await ocean.register_raw(
-            ResourceKindsWithSpecialHandling.APPLICATION, [application]
-        )
+ocean.add_webhook_processor("/webhook", ArgocdApplicationWebhookProcessor)

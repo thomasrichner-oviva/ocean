@@ -149,10 +149,13 @@ class ArgocdClient:
             yield resources
 
     async def get_application_by_name(
-        self, name: str, namespace: Optional[str] = None
+        self,
+        name: str,
+        namespace: Optional[str] = None,
+        params: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         url = f"{self.api_url}/{ResourceKindsWithSpecialHandling.APPLICATION}s/{name}"
-        query_params = {}
+        query_params = params or {}
         if namespace:
             query_params["appNamespace"] = namespace
         application = await self._send_api_request(url=url, query_params=query_params)
