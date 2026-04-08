@@ -19,6 +19,9 @@ from port_ocean.core.integrations.base import BaseIntegration
 from port_ocean.core.integrations.mixins.handler import HandlerMixin
 from port_ocean.utils.signal import signal_handler
 
+DEFAULT_WORK_ITEM_EXCLUDED_STATES = ["Closed", "Done", "Removed"]
+DEFAULT_WORK_ITEM_CHANGED_IN_DAYS = 90
+
 
 class AzureDevopsSelector(Selector):
     default_team: bool = Field(
@@ -103,14 +106,72 @@ class AzureDevopsWorkItemResourceConfig(ResourceConfig):
         wiql: str | None = Field(
             default=None,
             title="WIQL",
-            description="WIQL query to filter work items. If not provided, all work items will be fetched.",
+            description="Custom WIQL filter conditions. If provided, overrides stateFilter and changedInDays.",
             alias="wiql",
+        )
+        state_filter: List[str] | None = Field(
+            default=None,
+            alias="stateFilter",
+            title="State Filter",
+            description="List of states to include. Default excludes Closed, Done, Removed. Set to empty list [] to include all states.",
+        )
+        changed_in_days: int | None = Field(
+            default=None,
+            alias="changedInDays",
+            title="Changed In Days",
+            ge=0,
+            description="Only sync work items changed within this many days. Default is 90. Set to 0 to disable date filtering.",
+        )
+        type_filter: List[str] | None = Field(
+            default=None,
+            alias="typeFilter",
+            title="Type Filter",
+            description="Work item types to include. Default includes all types. e.g. ['Bug', 'Task']",
+        )
+        filters: List[str] | None = Field(
+            default=None,
+            title="Filters",
+            description="Additional raw WIQL conditions, joined with AND. e.g. [\"[System.AreaPath] UNDER 'Project/TeamA'\"]",
         )
         expand: Literal["None", "Fields", "Relations", "Links", "All"] = Field(
             default="All",
             title="Expand",
             description="Expand options for work items. Allowed values are 'None', 'Fields', 'Relations', 'Links' and 'All'. Default value is 'All'.",
         )
+
+        def build_wiql_filter(self) -> str | None:
+            if self.wiql:
+                return self.wiql
+
+            conditions: list[str] = []
+
+            if self.state_filter is None:
+                excluded = ", ".join(
+                    f"'{s}'" for s in DEFAULT_WORK_ITEM_EXCLUDED_STATES
+                )
+                conditions.append(f"[System.State] NOT IN ({excluded})")
+            elif len(self.state_filter) > 0:
+                included = ", ".join(f"'{s}'" for s in self.state_filter)
+                conditions.append(f"[System.State] IN ({included})")
+
+            days = (
+                self.changed_in_days
+                if self.changed_in_days is not None
+                else DEFAULT_WORK_ITEM_CHANGED_IN_DAYS
+            )
+            if days > 0:
+                conditions.append(f"[System.ChangedDate] >= @Today - {days}")
+
+            if self.type_filter is not None and len(self.type_filter) > 0:
+                types = ", ".join(f"'{t}'" for t in self.type_filter)
+                conditions.append(f"[System.WorkItemType] IN ({types})")
+
+            if self.filters is not None:
+                conditions.extend(self.filters)
+
+            if len(conditions) == 0:
+                return None
+            return " AND ".join(conditions)
 
     kind: Literal["work-item"] = Field(
         title="Azure Devops Work Item",
