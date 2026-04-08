@@ -11,7 +11,7 @@ from port_ocean.core.handlers.webhook.webhook_event import WebhookEventRawResult
 from loguru import logger
 from integration import ApplicationResourceConfig
 from misc import ResourceKindsWithSpecialHandling, init_client
-from typing import cast
+from typing import cast, Dict, Any
 
 
 class ArgocdApplicationWebhookProcessor(AbstractWebhookProcessor):
@@ -37,17 +37,15 @@ class ArgocdApplicationWebhookProcessor(AbstractWebhookProcessor):
         argocd_client = init_client()
         application_name = payload["application_name"]
         namespace = payload.get("application_namespace")
-        selector = cast(ApplicationResourceConfig, resource_config).selector
-        query_params = (
-            selector.query_params.generate_request_params
-            if selector.query_params
-            else None
-        )
+        query_params = self._resolve_query_params(resource_config, namespace)
+        if not query_params:
+            return WebhookEventRawResults(
+                updated_raw_results=[], deleted_raw_results=[]
+            )
 
         logger.info(f"Processing webhook upsert for application: {application_name}")
         application = await argocd_client.get_application_by_name(
             application_name,
-            namespace=namespace,
             params=query_params,
         )
 
@@ -65,3 +63,34 @@ class ArgocdApplicationWebhookProcessor(AbstractWebhookProcessor):
             updated_raw_results=[application],
             deleted_raw_results=[],
         )
+
+    def _resolve_query_params(
+        self, resource_config: ResourceConfig, namespace: str | None
+    ) -> Dict[str, Any] | None:
+        """
+        If a namespace is explicitly provided in the webhook payload ("application_namespace"),
+        respect it for downstream queries. However, it's possible that the user's
+        application selector in the config has already specified a namespace filter (in query_params["appNamespace"]).
+        1. If query_params already has an "appNamespace" filter:
+            - If it does *not* match the webhook's namespace, we must *not* process this webhook, as the event namespace
+            is not included in the filter the user configured. We log this mismatch and gracefully exit.
+        2. Otherwise, inject the webhook's namespace into query_params, so queries downstream know
+            exactly which namespace to search in (even if the original selector was unset or non-restrictive).
+        """
+        selector = cast(ApplicationResourceConfig, resource_config).selector
+        query_params = (
+            selector.query_params.generate_request_params
+            if selector.query_params
+            else {}
+        )
+        if namespace:
+            if query_params and query_params.get("appNamespace"):
+                if query_params["appNamespace"] != namespace:
+                    logger.info(
+                        f"Namespace {namespace} does not match filtered by selector {query_params}, skipping webhook processing"
+                    )
+                    return None
+            # At this point, either there was no appNamespace filter, or it matches the webhook.
+            # We set appNamespace to the incoming value to scope queries as tightly as possible.
+            query_params["appNamespace"] = namespace
+        return query_params

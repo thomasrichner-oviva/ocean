@@ -40,6 +40,11 @@ class TestArgocdApplicationWebhookProcessor:
             "application_namespace": "test-namespace",
         }
         query_params = {"projects": ["default"], "selector": "team=platform"}
+        expected_query_params = {
+            "projects": ["default"],
+            "selector": "team=platform",
+            "appNamespace": "test-namespace",
+        }
         resource_config = self._create_resource_config_with_query_params(query_params)
         application = {"metadata": {"name": "test-app", "uid": "uid-1"}}
 
@@ -54,14 +59,15 @@ class TestArgocdApplicationWebhookProcessor:
 
         mock_client.get_application_by_name.assert_called_once_with(
             "test-app",
-            namespace="test-namespace",
-            params=query_params,
+            params=expected_query_params,
         )
         assert result.updated_raw_results == [application]
         assert result.deleted_raw_results == []
 
     @pytest.mark.asyncio
-    async def test_handle_event_without_selector_query_params_passes_none(self) -> None:
+    async def test_handle_event_without_selector_query_params_skips_processing(
+        self,
+    ) -> None:
         processor = self._create_processor()
         payload = {"application_name": "test-app"}
         resource_config = self._create_resource_config_with_query_params(None)
@@ -76,12 +82,8 @@ class TestArgocdApplicationWebhookProcessor:
         ):
             result = await processor.handle_event(payload, resource_config)
 
-        mock_client.get_application_by_name.assert_called_once_with(
-            "test-app",
-            namespace=None,
-            params=None,
-        )
-        assert result.updated_raw_results == [application]
+        mock_client.get_application_by_name.assert_not_called()
+        assert result.updated_raw_results == []
         assert result.deleted_raw_results == []
 
     @pytest.mark.asyncio
@@ -90,7 +92,8 @@ class TestArgocdApplicationWebhookProcessor:
     ) -> None:
         processor = self._create_processor()
         payload = {"application_name": "missing-app"}
-        resource_config = self._create_resource_config_with_query_params(None)
+        request_params = {"projects": ["default"]}
+        resource_config = self._create_resource_config_with_query_params(request_params)
 
         mock_client = MagicMock()
         mock_client.get_application_by_name = AsyncMock(return_value={})
@@ -101,5 +104,35 @@ class TestArgocdApplicationWebhookProcessor:
         ):
             result = await processor.handle_event(payload, resource_config)
 
+        mock_client.get_application_by_name.assert_called_once_with(
+            "missing-app",
+            params=request_params,
+        )
+        assert result.updated_raw_results == []
+        assert result.deleted_raw_results == []
+
+    @pytest.mark.asyncio
+    async def test_handle_event_skips_when_namespace_does_not_match_selector(
+        self,
+    ) -> None:
+        processor = self._create_processor()
+        payload = {
+            "application_name": "test-app",
+            "application_namespace": "event-namespace",
+        }
+        resource_config = self._create_resource_config_with_query_params(
+            {"appNamespace": "configured-namespace"}
+        )
+
+        mock_client = MagicMock()
+        mock_client.get_application_by_name = AsyncMock(return_value={})
+
+        with patch(
+            "webhooks.webhook_processor.application_webhook_processor.init_client",
+            return_value=mock_client,
+        ):
+            result = await processor.handle_event(payload, resource_config)
+
+        mock_client.get_application_by_name.assert_not_called()
         assert result.updated_raw_results == []
         assert result.deleted_raw_results == []
