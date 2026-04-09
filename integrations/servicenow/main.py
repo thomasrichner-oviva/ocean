@@ -18,7 +18,48 @@ from webhook.processors.release_project_processor import (
 from webhook.processors.vulnerability_processor import (
     VulnerabilityWebhookProcessor,
 )
+from webhook.processors.user_membership_processor import (
+    UserMembershipWebhookProcessor,
+)
 from integration import ServiceNowResourceConfig
+
+
+@ocean.on_resync("sys_user")
+async def on_users_resync(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
+    logger.info("Starting sys_user resync with team enrichment")
+    servicenow_client = initialize_client(
+        servicenow_url=ocean.integration_config["servicenow_url"],
+        client_id=ocean.integration_config.get("servicenow_client_id"),
+        client_secret=ocean.integration_config.get("servicenow_client_secret"),
+        username=ocean.integration_config.get("servicenow_username"),
+        password=ocean.integration_config.get("servicenow_password"),
+    )
+
+    memberships_by_user = await servicenow_client.get_all_memberships_by_user(
+        api_query_params={
+            "sysparm_display_value": "all",
+            "sysparm_fields": "user,group",
+        }
+    )
+
+    selector = cast(ServiceNowResourceConfig, event.resource_config).selector
+    api_query_params = {}
+    if selector.api_query_params:
+        api_query_params = selector.api_query_params.generate_request_params()
+
+    async for user_batch in servicenow_client.get_paginated_resource(
+        resource_kind="sys_user", api_query_params=api_query_params
+    ):
+        for user in user_batch:
+            user_sys_id = (
+                user["sys_id"]["value"]
+                if isinstance(user["sys_id"], dict)
+                else user["sys_id"]
+            )
+            user["__teams"] = memberships_by_user.get(user_sys_id, [])
+
+        logger.info(f"Received sys_user batch with {len(user_batch)} enriched records")
+        yield user_batch
 
 
 @ocean.on_resync()
@@ -88,3 +129,4 @@ ocean.add_webhook_processor(WEBHOOK_ENDPOINT, ServiceCatalogWebhookProcessor)
 ocean.add_webhook_processor(WEBHOOK_ENDPOINT, UserGroupWebhookProcessor)
 ocean.add_webhook_processor(WEBHOOK_ENDPOINT, ReleaseProjectWebhookProcessor)
 ocean.add_webhook_processor(WEBHOOK_ENDPOINT, VulnerabilityWebhookProcessor)
+ocean.add_webhook_processor(WEBHOOK_ENDPOINT, UserMembershipWebhookProcessor)

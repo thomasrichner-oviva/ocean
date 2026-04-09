@@ -64,6 +64,14 @@ DEFAULT_FIELDS_PER_TABLE: dict[str, list[str]] = {
         "active",
         "sys_class_name",
     ],
+    "sys_user_grmember": [
+        "sys_id",
+        "user",
+        "group",
+        "sys_created_on",
+        "sys_updated_on",
+        "sys_class_name",
+    ],
     "release_project": [
         "sys_id",
         "number",

@@ -101,6 +101,36 @@ class ServicenowClient:
             url = self.extract_next_link(response.headers.get("Link", ""))
             params = None
 
+    async def get_all_memberships_by_user(
+        self, api_query_params: dict[str, Any] | None = None
+    ) -> dict[str, list[dict[str, Any]]]:
+        memberships_by_user: dict[str, list[dict[str, Any]]] = {}
+
+        async for batch in self.get_paginated_resource(
+            resource_kind="sys_user_grmember",
+            api_query_params=api_query_params,
+        ):
+            for membership in batch:
+                user_id = membership["user"]["value"]
+                memberships_by_user.setdefault(user_id, []).append(membership["group"])
+
+        logger.info(f"Built membership lookup for {len(memberships_by_user)} users")
+        return memberships_by_user
+
+    async def get_memberships_for_user(self, user_sys_id: str) -> list[dict[str, Any]]:
+        groups: list[dict[str, Any]] = []
+        async for batch in self.get_paginated_resource(
+            resource_kind="sys_user_grmember",
+            api_query_params={
+                "sysparm_query": f"user={user_sys_id}",
+                "sysparm_display_value": "all",
+                "sysparm_fields": "group",
+            },
+        ):
+            for membership in batch:
+                groups.append(membership["group"])
+        return groups
+
     async def sanity_check(self) -> None:
         await self._ensure_auth_headers()
         try:
