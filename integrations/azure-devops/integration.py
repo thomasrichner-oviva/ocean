@@ -19,9 +19,6 @@ from port_ocean.core.integrations.base import BaseIntegration
 from port_ocean.core.integrations.mixins.handler import HandlerMixin
 from port_ocean.utils.signal import signal_handler
 
-DEFAULT_WORK_ITEM_EXCLUDED_STATES = ["Closed", "Done", "Removed"]
-DEFAULT_WORK_ITEM_CHANGED_IN_DAYS = 90
-
 
 class AzureDevopsSelector(Selector):
     default_team: bool = Field(
@@ -106,30 +103,30 @@ class AzureDevopsWorkItemResourceConfig(ResourceConfig):
         wiql: str | None = Field(
             default=None,
             title="WIQL",
-            description="Custom WIQL filter conditions. If provided, overrides stateFilter and changedInDays.",
+            description="Custom WIQL filter conditions. If provided, overrides all other filter fields.",
             alias="wiql",
         )
-        state_filter: List[str] | None = Field(
-            default=None,
+        state_filter: list[str] = Field(
+            default_factory=list,
             alias="stateFilter",
             title="State Filter",
-            description="List of states to include. Default excludes Closed, Done, Removed. Set to empty list [] to include all states.",
+            description="Work item states to include. e.g. ['Active', 'New']. If empty, no state filter is applied.",
         )
         changed_in_days: int | None = Field(
             default=None,
             alias="changedInDays",
             title="Changed In Days",
-            ge=0,
-            description="Only sync work items changed within this many days. Default is 90. Set to 0 to disable date filtering.",
+            ge=1,
+            description="Only sync work items changed within this many days. If not set, no date filter is applied.",
         )
-        type_filter: List[str] | None = Field(
-            default=None,
+        type_filter: list[str] = Field(
+            default_factory=list,
             alias="typeFilter",
             title="Type Filter",
-            description="Work item types to include. Default includes all types. e.g. ['Bug', 'Task']",
+            description="Work item types to include. e.g. ['Bug', 'Task']. If empty, all types are included.",
         )
-        filters: List[str] | None = Field(
-            default=None,
+        filters: list[str] = Field(
+            default_factory=list,
             title="Filters",
             description="Additional raw WIQL conditions, joined with AND. e.g. [\"[System.AreaPath] UNDER 'Project/TeamA'\"]",
         )
@@ -145,31 +142,23 @@ class AzureDevopsWorkItemResourceConfig(ResourceConfig):
 
             conditions: list[str] = []
 
-            if self.state_filter is None:
-                excluded = ", ".join(
-                    f"'{s}'" for s in DEFAULT_WORK_ITEM_EXCLUDED_STATES
-                )
-                conditions.append(f"[System.State] NOT IN ({excluded})")
-            elif len(self.state_filter) > 0:
+            if self.state_filter:
                 included = ", ".join(f"'{s}'" for s in self.state_filter)
                 conditions.append(f"[System.State] IN ({included})")
 
-            days = (
-                self.changed_in_days
-                if self.changed_in_days is not None
-                else DEFAULT_WORK_ITEM_CHANGED_IN_DAYS
-            )
-            if days > 0:
-                conditions.append(f"[System.ChangedDate] >= @Today - {days}")
+            if self.changed_in_days:
+                conditions.append(
+                    f"[System.ChangedDate] >= @Today - {self.changed_in_days}"
+                )
 
-            if self.type_filter is not None and len(self.type_filter) > 0:
+            if self.type_filter:
                 types = ", ".join(f"'{t}'" for t in self.type_filter)
                 conditions.append(f"[System.WorkItemType] IN ({types})")
 
-            if self.filters is not None:
+            if self.filters:
                 conditions.extend(self.filters)
 
-            if len(conditions) == 0:
+            if not conditions:
                 return None
             return " AND ".join(conditions)
 
