@@ -12,13 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improvements
 
-- Added optional WIQL filter fields to the work item selector for orgs that want to limit ingestion:
+- Added optional structured filter fields to the work item selector for orgs that want to limit ingestion:
   - `stateFilter` — work item states to include (e.g. `['Active', 'New']`)
   - `changedInDays` — only sync items changed within this many days
   - `typeFilter` — work item types to include (e.g. `['Bug', 'Task']`)
-  - `filters` — additional raw WIQL conditions joined with AND (e.g. area path, tags)
   - All fields are opt-in; default behavior is unchanged (all work items are ingested)
-  - Custom `wiql` still takes full precedence when provided
+  - The existing `wiql` field now combines with the named fields (ANDed on top) instead of overriding them.
 
 
 ## 0.8.10 (2026-04-08)
