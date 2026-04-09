@@ -12,13 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improvements
 
-- Added default filters for work item ingestion to improve performance on large orgs:
-  - Excludes Closed, Done, Removed states by default
-  - Only syncs items changed within last 90 days by default
-  - New selector fields: `stateFilter`, `changedInDays`, `typeFilter`, `filters`
-  - `typeFilter` restricts ingestion to specific work item types (e.g. Bug, Task)
-  - `filters` accepts additional raw WIQL conditions for advanced filtering (e.g. area path, tags)
-  - Set `stateFilter: []` and `changedInDays: 0` to disable all filtering
+- Bumped ocean version to ^0.40.3
 
 
 ## 0.8.9 (2026-04-06)
