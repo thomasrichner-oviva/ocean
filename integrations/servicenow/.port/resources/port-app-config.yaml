@@ -58,3 +58,21 @@ resources:
             createdBy: .sys_created_by
             isActive: .active
             priority: .priority
+  - kind: sys_user
+    selector:
+      query: 'true'
+      enrichWithTeams: true
+      apiQueryParams:
+        sysparmDisplayValue: 'all'
+        sysparmExcludeReferenceLink: 'false'
+    port:
+      entity:
+        mappings:
+          identifier: .sys_id.value
+          title: .name.display_value
+          blueprint: '"servicenowUser"'
+          team: '[.__teams[].display_value]'
+          properties:
+            email: .email.display_value
+            userName: .user_name.display_value
+            active: .active.value

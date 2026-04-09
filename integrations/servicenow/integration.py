@@ -62,6 +62,17 @@ class ResourceSelector(Selector):
         default_factory=APIQueryParams,
         description="The query parameters used to filter resources from the ServiceNow API",
     )
+    enrich_with_teams: bool = Field(
+        alias="enrichWithTeams",
+        default=False,
+        description=(
+            "When set on a `sys_user` resource, pre-fetches `sys_user_grmember` records "
+            "and exposes each user's groups as `__teams` on the entity, enabling JQ "
+            "mappings like `team: '[.__teams[].display_value]'`. Disabled by default "
+            "because it adds extra API calls and requires the referenced teams to exist "
+            "as `_team` entities in Port."
+        ),
+    )
 
 
 class ServiceNowResourceConfig(ResourceConfig):
