@@ -103,7 +103,7 @@ class AzureDevopsWorkItemResourceConfig(ResourceConfig):
         wiql: str | None = Field(
             default=None,
             title="WIQL",
-            description="Custom WIQL filter conditions. If provided, overrides all other filter fields.",
+            description="Additional raw WIQL conditions ANDed with the named filter fields. If no named filters are set, acts as the full query.",
             alias="wiql",
         )
         state_filter: list[str] = Field(
@@ -125,11 +125,6 @@ class AzureDevopsWorkItemResourceConfig(ResourceConfig):
             title="Type Filter",
             description="Work item types to include. e.g. ['Bug', 'Task']. If empty, all types are included.",
         )
-        filters: list[str] = Field(
-            default_factory=list,
-            title="Filters",
-            description="Additional raw WIQL conditions, joined with AND. e.g. [\"[System.AreaPath] UNDER 'Project/TeamA'\"]",
-        )
         expand: Literal["None", "Fields", "Relations", "Links", "All"] = Field(
             default="All",
             title="Expand",
@@ -137,9 +132,6 @@ class AzureDevopsWorkItemResourceConfig(ResourceConfig):
         )
 
         def build_wiql_filter(self) -> str | None:
-            if self.wiql:
-                return self.wiql
-
             conditions: list[str] = []
 
             if self.state_filter:
@@ -155,8 +147,8 @@ class AzureDevopsWorkItemResourceConfig(ResourceConfig):
                 types = ", ".join(f"'{t}'" for t in self.type_filter)
                 conditions.append(f"[System.WorkItemType] IN ({types})")
 
-            if self.filters:
-                conditions.extend(self.filters)
+            if self.wiql:
+                conditions.append(f"({self.wiql})")
 
             if not conditions:
                 return None
