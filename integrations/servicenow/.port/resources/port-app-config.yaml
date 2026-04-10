@@ -16,6 +16,17 @@ resources:
             isActive: .active
             createdOn: '.sys_created_on | (strptime("%Y-%m-%d %H:%M:%S") | strftime("%Y-%m-%dT%H:%M:%SZ"))'
             createdBy: .sys_created_by
+  - kind: sys_user_group
+    selector:
+      query: 'true'
+      apiQueryParams:
+        sysparmDisplayValue: 'true'
+    port:
+      entity:
+        mappings:
+          identifier: '.name | gsub(" "; "_")'
+          title: .name
+          blueprint: '"_team"'
   - kind: sc_catalog
     selector:
       query: 'true'
@@ -71,7 +82,7 @@ resources:
           identifier: .sys_id.value
           title: .name.display_value
           blueprint: '"servicenowUser"'
-          team: '[.__teams[].display_value]'
+          team: '[.__teams[].display_value | gsub(" "; "_")]'
           properties:
             email: .email.display_value
             userName: .user_name.display_value
