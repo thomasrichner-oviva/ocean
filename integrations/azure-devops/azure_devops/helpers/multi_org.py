@@ -1,9 +1,10 @@
 import asyncio
 import functools
-from typing import Any, AsyncGenerator, Callable
+from typing import Callable
 
 from loguru import logger
 
+from port_ocean.core.ocean_types import ASYNC_GENERATOR_RESYNC_TYPE, RAW_RESULT
 from port_ocean.utils.async_iterators import (
     semaphore_async_iterator,
     stream_async_iterators_tasks,
@@ -16,12 +17,10 @@ from azure_devops.misc import extract_org_name_from_url
 
 CONCURRENT_ORG_RESYNCS = 5
 
-OrgHandler = Callable[[AzureDevopsClient], AsyncGenerator[list[dict[str, Any]], None]]
+OrgHandler = Callable[[AzureDevopsClient], ASYNC_GENERATOR_RESYNC_TYPE]
 
 
-def _enrich_batch(
-    batch: list[dict[str, Any]], org_url: str, org_name: str
-) -> list[dict[str, Any]]:
+def _enrich_batch(batch: RAW_RESULT, org_url: str, org_name: str) -> RAW_RESULT:
     for entity in batch:
         entity["__organizationUrl"] = org_url
         entity["__organizationName"] = org_name
@@ -30,14 +29,14 @@ def _enrich_batch(
 
 async def iterate_per_organization(
     handler: OrgHandler,
-) -> AsyncGenerator[list[dict[str, Any]], None]:
+) -> ASYNC_GENERATOR_RESYNC_TYPE:
     """Iterates over every configured Azure DevOps organization.
 
-    - Single-org deployments go through a transparent pass-through
+    - Single-org deployments go through a transparent pass-through.
     - Multi-org deployments fan out with a bounded
       :const:`CONCURRENT_ORG_RESYNCS` semaphore and wrap each org's
-      iteration in try/except so that a single failing org is logged and skipped without blocking the
-      other orgs from finishing their resync.
+      iteration in try/except so that a single failing org is logged
+      and skipped without blocking the other orgs from finishing.
     """
     manager = AzureDevopsClientManager.create_from_ocean_config()
     clients = manager.get_clients()
@@ -71,7 +70,7 @@ async def _iterate_one_organization(
     handler: OrgHandler,
     org_url: str,
     client: AzureDevopsClient,
-) -> AsyncGenerator[list[dict[str, Any]], None]:
+) -> ASYNC_GENERATOR_RESYNC_TYPE:
     org_name = extract_org_name_from_url(org_url)
     try:
         async for batch in handler(client):
