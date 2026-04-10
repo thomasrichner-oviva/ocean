@@ -42,9 +42,7 @@ async def iterate_per_organization(
     clients = manager.get_clients()
 
     if not clients:
-        logger.warning(
-            "iterate_per_organization invoked with no configured organizations."
-        )
+        logger.warning("There are no configured organizations. Skipping...")
         return
 
     if len(clients) == 1:

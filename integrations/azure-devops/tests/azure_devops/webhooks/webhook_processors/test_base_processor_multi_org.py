@@ -92,9 +92,6 @@ def set_multi_org_mapping() -> Generator[Dict[str, str], None, None]:
         ocean.integration_config[key] = value
 
 
-# ---- _extract_org_url_from_payload ----
-
-
 def test_extract_org_url_prefers_account_base_url() -> None:
     payload: EventPayload = {
         "resourceContainers": {
@@ -132,9 +129,6 @@ def test_extract_org_url_returns_none_when_no_containers() -> None:
     assert (
         AzureDevOpsBaseWebhookProcessor._extract_org_url_from_payload(payload) is None
     )
-
-
-# ---- _get_client_for_webhook ----
 
 
 def test_get_client_for_webhook_returns_per_org_client_on_match(
@@ -189,9 +183,6 @@ def test_get_client_for_webhook_falls_back_on_unknown_org(
         ocean.integration_config["personal_access_token"] = None
 
 
-# ---- _enrich_webhook_results ----
-
-
 def test_enrich_webhook_results_annotates_both_lists(
     processor: _ConcreteProcessor,
 ) -> None:
@@ -220,9 +211,6 @@ def test_enrich_webhook_results_is_noop_when_no_org_url(
     processor._enrich_webhook_results(result, payload)
     assert "__organizationUrl" not in result.updated_raw_results[0]
     assert "__organizationName" not in result.updated_raw_results[0]
-
-
-# ---- handle_event template method ----
 
 
 @pytest.mark.asyncio

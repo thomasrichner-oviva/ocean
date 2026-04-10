@@ -1,13 +1,3 @@
-"""Top-level resync generator functions, one per Azure DevOps kind.
-
-Each ``iter_*`` wraps a per-client handler closure in
-:func:`iterate_per_organization` so ``main.py``'s ``@ocean.on_resync``
-handlers become thin one-liners that read the selector config and
-delegate here. This keeps routing in ``main.py`` separate from the
-resync/batch-generation logic, and lets these generators be
-unit-tested in isolation.
-"""
-
 from typing import Any
 
 from loguru import logger

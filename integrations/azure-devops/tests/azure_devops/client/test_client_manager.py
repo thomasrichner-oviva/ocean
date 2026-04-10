@@ -66,9 +66,6 @@ def set_multi_org_mapping() -> Generator[dict[str, str], None, None]:
         ocean.integration_config[key] = value
 
 
-# ---- Single-org mode ----
-
-
 def test_legacy_single_org_builds_one_client(
     set_legacy_single_org: None, event_context: None
 ) -> None:
@@ -88,9 +85,6 @@ def test_legacy_single_org_client_lookup(
     client = manager.get_client_for_org("https://dev.azure.com/legacy-org")
     assert client is not None
     assert isinstance(client, AzureDevopsClient)
-
-
-# ---- Multi-org mode ----
 
 
 def test_multi_org_builds_one_client_per_entry(
@@ -144,9 +138,6 @@ def test_multi_org_with_trailing_slash_in_mapping_key(
         ocean.integration_config["organization_token_mapping"] = None
 
 
-# ---- Caching ----
-
-
 def test_create_from_ocean_config_caches_within_event(
     set_legacy_single_org: None, event_context: None
 ) -> None:
@@ -165,9 +156,6 @@ def test_create_from_ocean_config_no_cache_returns_fresh_instance(
     first = AzureDevopsClientManager.create_from_ocean_config_no_cache()
     second = AzureDevopsClientManager.create_from_ocean_config_no_cache()
     assert first is not second
-
-
-# ---- Bad config propagation ----
 
 
 def test_bad_config_raises_at_build(event_context: None) -> None:

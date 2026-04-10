@@ -1,13 +1,3 @@
-"""Tests for Task 3 additions on ``AzureDevopsClient``:
-
-- ``create_for_org`` classmethod (routes to the correct per-org client
-  via :class:`AzureDevopsClientManager`)
-- Cache-collision fix: verify that two ``AzureDevopsClient`` instances
-  configured for different organizations produce distinct
-  ``cache_iterator_result`` cache keys for the six cached methods, so
-  they don't leak each other's data in multi-org mode.
-"""
-
 import json
 from typing import Any, Generator
 
@@ -49,9 +39,6 @@ def set_multi_org_mapping() -> Generator[dict[str, str], None, None]:
         ocean.integration_config[key] = value
 
 
-# ---- create_for_org ----
-
-
 def test_create_for_org_returns_matching_client(
     set_multi_org_mapping: dict[str, str], event_context: None
 ) -> None:
@@ -72,17 +59,6 @@ def test_create_for_org_unknown_url_raises(
 ) -> None:
     with pytest.raises(ValueError, match="No client configured for organization"):
         AzureDevopsClient.create_for_org("https://dev.azure.com/unknown-org")
-
-
-# ---- Cache isolation ----
-#
-# hash_func (port_ocean.utils.cache) drops the instance (``self``) from
-# the cache key but hashes the remaining positional args. The six
-# cached backing methods now take ``org_identifier`` as their first
-# positional arg, which callers set to ``self._organization_base_url``.
-# Two clients configured for different orgs therefore produce distinct
-# cache keys for the same method call, preventing the silent
-# cross-org data leak the plan flagged.
 
 
 CACHED_BACKING_METHODS = [

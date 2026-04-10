@@ -22,15 +22,6 @@ from azure_devops.webhooks.webhook_processors.folder_webhook_processor import (
 from azure_devops.webhooks.webhook_processors.gitops_webhook_processor import (
     GitopsWebhookProcessor,
 )
-from azure_devops.webhooks.webhook_processors.pipeline_run_webhook_processor import (
-    PipelineRunWebhookProcessor,
-)
-from azure_devops.webhooks.webhook_processors.pipeline_stage_webhook_processor import (
-    PipelineStageWebhookProcessor,
-)
-from azure_devops.webhooks.webhook_processors.pipeline_webhook_processor import (
-    PipelineWebhookProcessor,
-)
 from azure_devops.webhooks.webhook_processors.pull_request_processor import (
     PullRequestWebhookProcessor,
 )
@@ -39,6 +30,15 @@ from azure_devops.webhooks.webhook_processors.repository_processor import (
 )
 from azure_devops.webhooks.webhook_processors.work_item_webhook_processor import (
     WorkItemWebhookProcessor,
+)
+from azure_devops.webhooks.webhook_processors.pipeline_run_webhook_processor import (
+    PipelineRunWebhookProcessor,
+)
+from azure_devops.webhooks.webhook_processors.pipeline_stage_webhook_processor import (
+    PipelineStageWebhookProcessor,
+)
+from azure_devops.webhooks.webhook_processors.pipeline_webhook_processor import (
+    PipelineWebhookProcessor,
 )
 from integration import (
     AzureDevopsAdvancedSecurityResourceConfig,

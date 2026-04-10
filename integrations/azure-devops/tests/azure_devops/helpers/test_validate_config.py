@@ -5,9 +5,6 @@ import pytest
 from azure_devops.helpers.validate_config import validate_azure_devops_config
 
 
-# ---- Legacy single-org config ----
-
-
 def test_legacy_single_org_config_passes() -> None:
     validate_azure_devops_config(
         organization_url="https://dev.azure.com/myorg",
@@ -43,9 +40,6 @@ def test_no_config_at_all_raises() -> None:
         )
 
 
-# ---- Multi-org organizationTokenMapping config ----
-
-
 def test_multi_org_valid_mapping_passes() -> None:
     validate_azure_devops_config(
         organization_url=None,
@@ -77,9 +71,6 @@ def test_multi_org_visualstudio_url_passes() -> None:
             {"https://myorg.visualstudio.com": "pat-vs"}
         ),
     )
-
-
-# ---- Malformed organizationTokenMapping ----
 
 
 def test_malformed_json_raises() -> None:
@@ -172,9 +163,6 @@ def test_non_string_pat_value_raises() -> None:
                 {"https://dev.azure.com/org1": 12345}
             ),
         )
-
-
-# ---- Precedence & co-existence ----
 
 
 def test_both_legacy_and_mapping_passes() -> None:

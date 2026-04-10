@@ -1,19 +1,3 @@
-"""Tests for :func:`iterate_per_organization` (Task 4).
-
-Covered behaviors:
-- Single-org pass-through is transparent: batches are yielded in order
-  and exceptions raised by the handler propagate to the caller (no
-  silent swallowing — backward compatibility guarantee for existing
-  single-org deployments).
-- Multi-org fan-out yields batches from every configured organization,
-  each enriched with its own ``__organizationUrl`` and
-  ``__organizationName``.
-- Multi-org error isolation: a handler exception for one org is logged
-  but does not block the other orgs from completing.
-- Empty-manager defensive branch returns without yielding (validation
-  normally prevents this, but the helper tolerates it).
-"""
-
 import json
 from typing import Any, AsyncGenerator, Generator
 from unittest.mock import MagicMock
@@ -87,9 +71,6 @@ def _fake_batches(
     return gen()
 
 
-# ---- Single-org pass-through ----
-
-
 @pytest.mark.asyncio
 async def test_single_org_yields_enriched_batches(
     set_legacy_single_org: None, event_context: None
@@ -132,9 +113,6 @@ async def test_single_org_propagates_handler_exception(
     with pytest.raises(BoomError, match="simulated resync failure"):
         async for _ in iterate_per_organization(handler):
             pass
-
-
-# ---- Multi-org fan-out ----
 
 
 @pytest.mark.asyncio
@@ -228,9 +206,6 @@ async def test_multi_org_respects_concurrency_bound(
         ocean.integration_config["organization_token_mapping"] = previous_mapping
         ocean.integration_config["organization_url"] = previous_url
         ocean.integration_config["personal_access_token"] = previous_pat
-
-
-# ---- Defensive: empty manager ----
 
 
 @pytest.mark.asyncio
