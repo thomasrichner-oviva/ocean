@@ -1,5 +1,6 @@
 from azure_devops.misc import (
     create_closed_pull_request_search_criteria,
+    extract_org_name_from_url,
     ACTIVE_PULL_REQUEST_SEARCH_CRITERIA,
 )
 from datetime import datetime, timedelta
@@ -25,3 +26,24 @@ def test_completed_and_abandoned_filters_use_closed_time_range() -> None:
         assert (
             filter_options["searchCriteria.queryTimeRangeType"] == "closed"
         ), f"{status} filter should use closed time range"
+
+
+def test_extract_org_name_from_dev_azure_com_url() -> None:
+    assert extract_org_name_from_url("https://dev.azure.com/myorg") == "myorg"
+
+
+def test_extract_org_name_from_dev_azure_com_url_with_trailing_slash() -> None:
+    assert extract_org_name_from_url("https://dev.azure.com/myorg/") == "myorg"
+
+
+def test_extract_org_name_from_dev_azure_com_url_with_path_suffix() -> None:
+    # Only the first path segment is the org.
+    assert extract_org_name_from_url("https://dev.azure.com/myorg/project") == "myorg"
+
+
+def test_extract_org_name_from_visualstudio_com_url() -> None:
+    assert extract_org_name_from_url("https://myorg.visualstudio.com") == "myorg"
+
+
+def test_extract_org_name_from_visualstudio_com_url_with_trailing_slash() -> None:
+    assert extract_org_name_from_url("https://myorg.visualstudio.com/") == "myorg"
