@@ -10,13 +10,19 @@ features:
     section: Git Providers
 configurations:
   - name: organizationUrl
-    description: The URL of your Azure DevOps organization (e.g., "https://dev.azure.com/{your-organization}"). To find your organization URL, refer to the <a target="_blank" href="https://learn.microsoft.com/en-us/azure/devops/extend/develop/work-with-urls?view=azure-devops&tabs=http">Azure DevOps documentation</a>.
-    required: true
+    description: The URL of your Azure DevOps organization (e.g., "https://dev.azure.com/{your-organization}"). To find your organization URL, refer to the <a target="_blank" href="https://learn.microsoft.com/en-us/azure/devops/extend/develop/work-with-urls?view=azure-devops&tabs=http">Azure DevOps documentation</a>. Used for single-organization deployments; for multi-org, use organizationTokenMapping instead.
+    required: false
     type: url
     sensitive: true
   - name: personalAccessToken
-    description: A personal access token (PAT) with read permissions for the resources you want to sync. To create a PAT, see the <a target="_blank" href="https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops">Azure DevOps documentation</a>.
-    required: true
+    description: A personal access token (PAT) with read permissions for the resources you want to sync. To create a PAT, see the <a target="_blank" href="https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops">Azure DevOps documentation</a>. Used with organizationUrl for single-organization deployments.
+    required: false
+    type: string
+    sensitive: true
+  - name: organizationTokenMapping
+    description: >
+      A JSON string mapping Azure DevOps organization URLs to their Personal Access Tokens, for multi-organization support. When provided, takes precedence over organizationUrl/personalAccessToken. Each PAT must have read permissions for its corresponding organization. Example: '{"https://dev.azure.com/org1": "PAT1", "https://dev.azure.com/org2": "PAT2"}'. See the <a target="_blank" href="https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops">Azure DevOps PAT documentation</a>.
+    required: false
     type: string
     sensitive: true
   - name: isProjectsLimited

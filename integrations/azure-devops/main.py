@@ -3,6 +3,7 @@ from typing import Any, cast
 from loguru import logger
 
 from azure_devops.client.azure_devops_client import AzureDevopsClient
+from azure_devops.helpers.validate_config import validate_azure_devops_config
 from azure_devops.misc import (
     create_closed_pull_request_search_criteria,
     ACTIVE_PULL_REQUEST_SEARCH_CRITERIA,
@@ -334,6 +335,18 @@ async def resync_pipeline_runs(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
     async for runs in azure_devops_client.generate_pipeline_runs():
         logger.info(f"Resyncing {len(runs)} pipeline runs")
         yield runs
+
+
+@ocean.on_start()
+async def validate_integration_config() -> None:
+    """Validate config for single or multi org setup"""
+    validate_azure_devops_config(
+        organization_url=ocean.integration_config.get("organization_url"),
+        personal_access_token=ocean.integration_config.get("personal_access_token"),
+        organization_token_mapping=ocean.integration_config.get(
+            "organization_token_mapping"
+        ),
+    )
 
 
 @ocean.on_start()
