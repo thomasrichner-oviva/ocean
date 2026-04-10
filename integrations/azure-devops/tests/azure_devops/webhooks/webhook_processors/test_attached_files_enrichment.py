@@ -53,7 +53,7 @@ class TestAzureDevopsIncludedFilesEnrichment:
     ) -> None:
         """Test that handle_event enriches with included files when configured."""
         monkeypatch.setattr(
-            "azure_devops.webhooks.webhook_processors.repository_processor.AzureDevopsClient.create_from_ocean_config",
+            "azure_devops.client.azure_devops_client.AzureDevopsClient.create_from_ocean_config",
             lambda: mock_client,
         )
 
@@ -97,7 +97,7 @@ class TestAzureDevopsIncludedFilesEnrichment:
     ) -> None:
         """Test that handle_event does not enrich when includedFiles is empty."""
         monkeypatch.setattr(
-            "azure_devops.webhooks.webhook_processors.repository_processor.AzureDevopsClient.create_from_ocean_config",
+            "azure_devops.client.azure_devops_client.AzureDevopsClient.create_from_ocean_config",
             lambda: mock_client,
         )
 

@@ -12,7 +12,7 @@ def mock_client(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     mock_client = MagicMock()
     mock_client.get_commit_changes = AsyncMock()
     monkeypatch.setattr(
-        "azure_devops.webhooks.webhook_processors.folder_webhook_processor.AzureDevopsClient.create_from_ocean_config",
+        "azure_devops.client.azure_devops_client.AzureDevopsClient.create_from_ocean_config",
         lambda: mock_client,
     )
     return mock_client

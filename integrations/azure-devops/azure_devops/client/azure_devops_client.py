@@ -157,14 +157,7 @@ class AzureDevopsClient(HTTPBaseClient):
 
     @classmethod
     def create_for_org(cls, org_url: str) -> "AzureDevopsClient":
-        """Look up the client for a specific organization URL.
-
-        Used by webhook processors and the multi-org iteration helper
-        to route work to the correct per-organization client. Raises
-        ValueError if ``org_url`` is not in the configured mapping.
-        Lazy-imports :class:`AzureDevopsClientManager` to avoid a
-        circular import (the manager module imports this class).
-        """
+        """Look up the client for a specific organization URL"""
         from azure_devops.client.client_manager import AzureDevopsClientManager
 
         manager = AzureDevopsClientManager.create_from_ocean_config()

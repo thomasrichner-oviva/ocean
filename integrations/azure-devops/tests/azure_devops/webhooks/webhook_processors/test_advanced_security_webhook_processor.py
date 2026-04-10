@@ -21,7 +21,7 @@ def advanced_security_processor(
     mock_client: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> AdvancedSecurityWebhookProcessor:
     monkeypatch.setattr(
-        "azure_devops.webhooks.webhook_processors.advanced_security_webhook_processor.AzureDevopsClient.create_from_ocean_config",
+        "azure_devops.client.azure_devops_client.AzureDevopsClient.create_from_ocean_config",
         lambda: mock_client,
     )
     return AdvancedSecurityWebhookProcessor(MagicMock(spec=WebhookEvent))

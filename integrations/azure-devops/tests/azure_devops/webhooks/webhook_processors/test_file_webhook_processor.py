@@ -12,7 +12,7 @@ def push_processor(
 ) -> RepositoryWebhookProcessor:
     mock_client = MagicMock()
     monkeypatch.setattr(
-        "azure_devops.webhooks.webhook_processors.repository_processor.AzureDevopsClient.create_from_ocean_config",
+        "azure_devops.client.azure_devops_client.AzureDevopsClient.create_from_ocean_config",
         lambda: mock_client,
     )
     return RepositoryWebhookProcessor(event)
