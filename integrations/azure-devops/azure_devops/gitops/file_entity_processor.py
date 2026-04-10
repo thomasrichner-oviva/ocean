@@ -10,6 +10,21 @@ FILE_PROPERTY_PREFIX = "file://"
 JSON_SUFFIX = ".json"
 
 
+def _get_client_for_entity(data: Dict[str, Any]) -> AzureDevopsClient:
+    """Resolve the per-org Azure DevOps client for a GitOps entity"""
+    org_url = data.get("__organizationUrl")
+    if org_url:
+        try:
+            return AzureDevopsClient.create_for_org(org_url)
+        except ValueError:
+            logger.warning(
+                f"GitOps entity references unknown organization {org_url}; "
+                f"falling back to legacy client. "
+                f"Check organizationTokenMapping config."
+            )
+    return AzureDevopsClient.create_from_ocean_config_no_cache()
+
+
 class GitManipulationHandler(JQEntityProcessor):
     async def _search(
         self, data: Dict[str, Any], pattern: str, field: str | None = None
@@ -27,7 +42,7 @@ class GitManipulationHandler(JQEntityProcessor):
         return await super()._search(data, pattern, field)
 
     async def _search_by_file(self, data: Dict[str, Any], pattern: str) -> Any:
-        client = AzureDevopsClient.create_from_ocean_config_no_cache()
+        client = _get_client_for_entity(data)
         repository_id, branch = parse_repository_payload(data)
         file_path = pattern.replace(FILE_PROPERTY_PREFIX, "")
         file_raw_content = await client.get_file_by_branch(
