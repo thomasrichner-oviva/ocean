@@ -7,19 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- towncrier release notes start -->
 
-## 0.8.12 (2026-04-09)
-
-
-### Improvements
-
-- Added optional structured filter fields to the work item selector for orgs that want to limit ingestion:
-  - `stateFilter` — work item states to include (e.g. `['Active', 'New']`)
-  - `changedInDays` — only sync items changed within this many days
-  - `typeFilter` — work item types to include (e.g. `['Bug', 'Task']`)
-  - All fields are opt-in; default behavior is unchanged (all work items are ingested)
-  - The existing `wiql` field now combines with the named fields (ANDed on top) instead of overriding them.
-
-
 ## 0.8.11 (2026-04-09)
 
 

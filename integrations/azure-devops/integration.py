@@ -103,56 +103,14 @@ class AzureDevopsWorkItemResourceConfig(ResourceConfig):
         wiql: str | None = Field(
             default=None,
             title="WIQL",
-            description="Additional raw WIQL conditions ANDed with the named filter fields. If no named filters are set, acts as the full query.",
+            description="WIQL query to filter work items. If not provided, all work items will be fetched.",
             alias="wiql",
-        )
-        state_filter: list[str] = Field(
-            default_factory=list,
-            alias="stateFilter",
-            title="State Filter",
-            description="Work item states to include. e.g. ['Active', 'New']. If empty, no state filter is applied.",
-        )
-        changed_in_days: int | None = Field(
-            default=None,
-            alias="changedInDays",
-            title="Changed In Days",
-            ge=1,
-            description="Only sync work items changed within this many days. If not set, no date filter is applied.",
-        )
-        type_filter: list[str] = Field(
-            default_factory=list,
-            alias="typeFilter",
-            title="Type Filter",
-            description="Work item types to include. e.g. ['Bug', 'Task']. If empty, all types are included.",
         )
         expand: Literal["None", "Fields", "Relations", "Links", "All"] = Field(
             default="All",
             title="Expand",
             description="Expand options for work items. Allowed values are 'None', 'Fields', 'Relations', 'Links' and 'All'. Default value is 'All'.",
         )
-
-        def build_wiql_filter(self) -> str | None:
-            conditions: list[str] = []
-
-            if self.state_filter:
-                included = ", ".join(f"'{s}'" for s in self.state_filter)
-                conditions.append(f"[System.State] IN ({included})")
-
-            if self.changed_in_days:
-                conditions.append(
-                    f"[System.ChangedDate] >= @Today - {self.changed_in_days}"
-                )
-
-            if self.type_filter:
-                types = ", ".join(f"'{t}'" for t in self.type_filter)
-                conditions.append(f"[System.WorkItemType] IN ({types})")
-
-            if self.wiql:
-                conditions.append(f"({self.wiql})")
-
-            if not conditions:
-                return None
-            return " AND ".join(conditions)
 
     kind: Literal["work-item"] = Field(
         title="Azure Devops Work Item",
