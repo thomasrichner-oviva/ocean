@@ -8,12 +8,13 @@ from port_ocean.core.handlers.webhook.webhook_event import (
 )
 from port_ocean.core.handlers.port_app_config.models import ResourceConfig
 from webhook.initialize_client import initialize_webhook_client
+from kinds import ResourceKindsWithSpecialHandling
 
 
 class UserMembershipWebhookProcessor(ServicenowAbstractWebhookProcessor):
 
     async def get_matching_kinds(self, event: WebhookEvent) -> list[str]:
-        return ["sys_user"]
+        return [ResourceKindsWithSpecialHandling.USER]
 
     def _should_process_event(self, event: WebhookEvent) -> bool:
         payload = event.payload
