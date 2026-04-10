@@ -216,7 +216,7 @@ class AzureDevopsClient(HTTPBaseClient):
         sync_default_team: bool = False,
     ) -> AsyncGenerator[list[dict[str, Any]], None]:
         params = {"includeCapabilities": "true"}
-        projects_url = f"{self._organization_base_url}/{API_URL_PREFIX}/projects"
+        projects_url = f"{org_identifier}/{API_URL_PREFIX}/projects"
         async for projects in self._get_paginated_by_top_and_continuation_token(
             projects_url, additional_params=params
         ):
@@ -298,7 +298,7 @@ class AzureDevopsClient(HTTPBaseClient):
     async def _generate_teams_cached(
         self, org_identifier: str
     ) -> AsyncGenerator[list[dict[str, Any]], None]:
-        teams_url = f"{self._organization_base_url}/{API_URL_PREFIX}/teams"
+        teams_url = f"{org_identifier}/{API_URL_PREFIX}/teams"
         async for teams in self._get_paginated_by_top_and_skip(teams_url):
             yield teams
 
@@ -502,7 +502,7 @@ class AzureDevopsClient(HTTPBaseClient):
     ) -> AsyncGenerator[list[dict[Any, Any]], None]:
         async for projects in self.generate_projects():
             for project in projects:
-                repos_url = f"{self._organization_base_url}/{project['id']}/{API_URL_PREFIX}/git/repositories"
+                repos_url = f"{org_identifier}/{project['id']}/{API_URL_PREFIX}/git/repositories"
                 response = await self.send_request("GET", repos_url)
                 if not response:
                     continue
@@ -892,7 +892,7 @@ class AzureDevopsClient(HTTPBaseClient):
     ) -> AsyncGenerator[list[dict[str, Any]], None]:
         async for projects in self.generate_projects():
             for project in projects:
-                environments_url = f"{self._organization_base_url}/{project['id']}/{API_URL_PREFIX}/distributedtask/environments"
+                environments_url = f"{org_identifier}/{project['id']}/{API_URL_PREFIX}/distributedtask/environments"
                 async for (
                     environments
                 ) in self._get_paginated_by_top_and_continuation_token(
