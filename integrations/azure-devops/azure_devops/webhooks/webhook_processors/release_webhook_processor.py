@@ -24,9 +24,7 @@ class ReleaseWebhookProcessor(AzureDevOpsBaseWebhookProcessor):
         if not await super().validate_payload(payload):
             return False
 
-        project_id = (
-            payload.get("resourceContainers", {}).get("project", {}).get("id")
-        )
+        project_id = payload.get("resourceContainers", {}).get("project", {}).get("id")
         release_id = payload.get("resource", {}).get("release", {}).get("id")
         return project_id is not None and release_id is not None
 
