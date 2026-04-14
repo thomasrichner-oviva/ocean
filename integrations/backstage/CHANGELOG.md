@@ -1,3 +1,11 @@
+## 0.1.222-beta (2026-04-14)
+
+
+### Improvements
+
+- Added Literal kind definitions to `BackstagePortAppConfig` for schema validation compliance
+
+
 ## 0.1.221-beta (2026-04-12)
 
 
