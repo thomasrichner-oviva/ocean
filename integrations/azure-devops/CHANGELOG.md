@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 0.8.13 (2026-04-15)
 
 
-### Features
+### Improvements
 
-- Added live event support for releases and release deployments via ADO service hooks (release created, abandoned, deployment started, deployment completed)
+- Enhanced repository-policy and test-run fetching with concurrency support
 
 
 ## 0.8.12 (2026-04-12)
