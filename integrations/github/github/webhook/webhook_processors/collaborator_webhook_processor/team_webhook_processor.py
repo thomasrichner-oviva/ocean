@@ -1,10 +1,13 @@
+from typing import Any
 from loguru import logger
 
 from github.clients.client_factory import create_github_client
-from github.core.exporters.team_exporter import (
-    GraphQLTeamMembersAndReposExporter,
+from github.core.exporters.team_exporter import RestTeamExporter
+from github.helpers.utils import (
+    ObjectKind,
+    enrich_with_organization,
+    enrich_with_repository,
 )
-from github.helpers.utils import GithubClientType, ObjectKind
 from github.webhook.events import (
     TEAM_COLLABORATOR_EVENTS,
 )
@@ -18,6 +21,9 @@ from port_ocean.core.handlers.webhook.webhook_event import (
     WebhookEventRawResults,
 )
 from github.core.options import SingleTeamOptions
+from github.webhook.webhook_processors.collaborator_webhook_processor.utils import (
+    skip_if_affiliation_filtered,
+)
 
 
 class CollaboratorTeamWebhookProcessor(BaseRepositoryWebhookProcessor):
@@ -50,10 +56,15 @@ class CollaboratorTeamWebhookProcessor(BaseRepositoryWebhookProcessor):
         action = payload["action"]
         team_slug = payload["team"]["slug"]
         organization = self.get_webhook_payload_organization(payload)["login"]
+        repository = payload["repository"]
 
         logger.info(
             f"Handling team event: {action} for team {team_slug} of organization: {organization}"
         )
+
+        skipped = skip_if_affiliation_filtered(resource_config)
+        if skipped is not None:
+            return skipped
 
         if action not in TEAM_COLLABORATOR_EVENTS:
             logger.info(
@@ -63,13 +74,15 @@ class CollaboratorTeamWebhookProcessor(BaseRepositoryWebhookProcessor):
                 updated_raw_results=[], deleted_raw_results=[]
             )
 
-        graphql_client = create_github_client(client_type=GithubClientType.GRAPHQL)
-        team_exporter = GraphQLTeamMembersAndReposExporter(graphql_client)
-        team_data = await team_exporter.get_resource(
+        rest_client = create_github_client()
+        team_exporter = RestTeamExporter(rest_client)
+        members: list[dict[str, Any]] = []
+        async for batch in team_exporter.get_team_members_by_slug(
             SingleTeamOptions(organization=organization, slug=team_slug)
-        )
+        ):
+            members.extend(batch)
 
-        if not team_data:
+        if not members:
             logger.warning(
                 f"No team data returned for team {team_slug} of organization: {organization}"
             )
@@ -78,15 +91,11 @@ class CollaboratorTeamWebhookProcessor(BaseRepositoryWebhookProcessor):
             )
 
         data_to_upsert = [
-            {
-                "id": member["id"],
-                "login": member["login"],
-                "name": member["name"],
-                "site_admin": member["isSiteAdmin"],
-                "__repository": repo["name"],
-            }
-            for member in team_data["members"]["nodes"]
-            for repo in team_data["repositories"]["nodes"]
+            enrich_with_organization(
+                enrich_with_repository(member.copy(), repository["name"]),
+                organization,
+            )
+            for member in members
         ]
 
         logger.info(

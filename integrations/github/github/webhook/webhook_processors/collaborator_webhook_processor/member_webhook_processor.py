@@ -21,6 +21,9 @@ from port_ocean.core.handlers.webhook.webhook_event import (
     WebhookEvent,
     WebhookEventRawResults,
 )
+from github.webhook.webhook_processors.collaborator_webhook_processor.utils import (
+    skip_if_affiliation_filtered,
+)
 
 
 class CollaboratorMemberWebhookProcessor(BaseRepositoryWebhookProcessor):
@@ -53,6 +56,10 @@ class CollaboratorMemberWebhookProcessor(BaseRepositoryWebhookProcessor):
             f"Processing member event: {action} for {username} in {repo_name} of organization: {organization}"
         )
 
+        skipped = skip_if_affiliation_filtered(resource_config)
+        if skipped is not None:
+            return skipped
+
         if action in COLLABORATOR_DELETE_EVENTS:
             logger.info(
                 f"Collaborator {username} was removed from repository {repo_name} of organization: {organization}"
@@ -63,7 +70,7 @@ class CollaboratorMemberWebhookProcessor(BaseRepositoryWebhookProcessor):
             }
 
             data_to_delete = enrich_with_organization(
-                enrich_with_repository(constructed_payload, repo_name, repo=repository),
+                enrich_with_repository(constructed_payload, repo_name),
                 organization,
             )
             return WebhookEventRawResults(

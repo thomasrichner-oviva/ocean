@@ -116,9 +116,28 @@ class WebhookEventRawResults:
         webhook_trace_id: str | None = None,
     ) -> None:
         self._resource: ResourceConfig | None = None
+        self._resource_index: int | None = None
         self._updated_raw_results = updated_raw_results
         self._deleted_raw_results = deleted_raw_results
         self._webhook_trace_id = webhook_trace_id
+        self._original_webhook: EventPayload | None = None
+        self._original_headers: EventHeaders | None = None
+
+    @property
+    def original_webhook(self) -> EventPayload | None:
+        return self._original_webhook
+
+    @original_webhook.setter
+    def original_webhook(self, value: EventPayload) -> None:
+        self._original_webhook = value
+
+    @property
+    def original_headers(self) -> EventHeaders | None:
+        return self._original_headers
+
+    @original_headers.setter
+    def original_headers(self, value: EventHeaders) -> None:
+        self._original_headers = value
 
     @property
     def resource(self) -> ResourceConfig:
@@ -129,6 +148,14 @@ class WebhookEventRawResults:
     @resource.setter
     def resource(self, value: ResourceConfig) -> None:
         self._resource = value
+
+    @property
+    def resource_index(self) -> int | None:
+        return self._resource_index
+
+    @resource_index.setter
+    def resource_index(self, value: int | None) -> None:
+        self._resource_index = value
 
     @property
     def updated_raw_results(self) -> list[RAW_ITEM]:

@@ -7,6 +7,180 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- towncrier release notes start -->
 
+## 0.8.12 (2026-04-12)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.5
+
+
+## 0.8.11 (2026-04-09)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.4
+
+
+## 0.8.10 (2026-04-08)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.3
+
+
+## 0.8.9 (2026-04-06)
+
+
+### Improvements
+
+- Added title/description metadata to AzureDevopsFolderSelector, AzureDevopsFolderResourceConfig, and AzureDevopsReleaseDeploymentConfig for schema validation compliance
+
+
+## 0.8.8 (2026-04-06)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.2
+
+
+## 0.8.7 (2026-04-06)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.1
+
+
+## 0.8.6 (2026-04-06)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.0
+
+
+## 0.8.5 (2026-04-06)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.39.1
+
+
+## 0.8.4 (2026-04-05)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.39.0
+
+
+## 0.8.3 (2026-03-30)
+
+
+### Improvements
+
+- Enabled formMappingEnabled flag
+
+
+## 0.8.2 (2026-03-30)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.27
+
+
+## 0.8.1 (2026-03-25)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.24
+
+
+## 0.8.0 (2026-03-24)
+
+
+### Improvements
+
+- Renamed `included files` to `Additional files`
+
+## 0.7.48 (2026-03-24)
+
+
+### Bug Fixes
+
+- Fixed test runs ingestion pagination to use `$skip/$top` for the Test Runs List endpoint (instead of continuation tokens), preventing missing test runs in large projects/orgs.
+
+
+## 0.7.47 (2026-03-24)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.23
+
+
+## 0.7.46 (2026-03-23)
+
+### Bug Fixes
+
+- Fixed work items sync capped at 20K per project: added ID-range pagination to fetch all work items when a project exceeds the Azure DevOps WIQL API limit of 20,000 results per query
+- When user's WIQL contains ORDER BY: use their query as-is (respecting their order) but disable pagination with a warning; without ORDER BY we append our own for full pagination
+
+## 0.7.45 (2026-03-22)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.22
+
+
+## 0.7.44 (2026-03-19)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.21
+
+
+## 0.7.43 (2026-03-18)
+
+
+### Improvements
+
+- Updated HTTP client to use Ocean's core `client_timeout` configuration
+
+
+## 0.7.42 (2026-03-17)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.20
+
+
+## 0.7.41 (2026-03-17)
+
+
+### Bug Fixes
+
+- Fixed `_get_repository_files` to skip `None` results from `download_single_file` instead of yielding `[None]`
+
+
+## 0.7.40 (2026-03-17)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.19
+
+
 ## 0.7.39 (2026-03-16)
 
 

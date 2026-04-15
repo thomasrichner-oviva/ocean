@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from fastapi import Request
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from port_ocean.core.handlers.port_app_config.models import (
     PortAppConfig,
     ResourceConfig,
@@ -52,10 +52,10 @@ class RepoSearchSelector(Selector):
 
 class IncludedFilesConfig(BaseModel):
     included_files: list[str] = Field(
-        title="Included Files",
+        title="Attached Files",
         alias="includedFiles",
         default_factory=list,
-        description="File paths to fetch and attach to the folder entity.",
+        description='File paths to fetch and attach to the raw data under `__includedFiles`. E.g. ["README.md", "CODEOWNERS"]',
     )
 
     class Config:
@@ -151,14 +151,18 @@ class GithubFilePattern(RepositorySourceModel):
 
 class GithubFileSelector(Selector, IncludedFilesConfig):
     files: list[GithubFilePattern] = Field(
-        title="Files",
-        description="File patterns (path, repos) to ingest.",
+        title="File sync patterns",
+        description="""Array of files to retrieve. Each cell can include:<br/>
+• <b>Path</b> - files path, supports glob pattern. Example: "**/package.json"<br/>
+• <b>Organization</b> - GitHub org to scan<br/>
+• <b>Repos</b> - array of repositories used to fetch files from. Each repo includes name and branch.<br/>
+For more information, see <a target='_blank' href='https://docs.port.io/build-your-software-catalog/sync-data-to-catalog/git/github-ocean/examples#files-and-file-contents'>Our docs</a>.""",
     )
     included_files: list[str] = Field(
-        title="Included Files",
+        title="Additional files",
         alias="includedFiles",
         default_factory=list,
-        description="Additional file paths to fetch and attach to the file entity.",
+        description="List of file paths to fetch and attach to the file entity. This selector will add the content of the file to the API response under the `__includedFiles` field.",
     )
 
 
@@ -198,28 +202,46 @@ class GithubPullRequestSelector(RepoSearchSelector):
         description="Filter pull requests by states (e.g. ['open']).",
     )
     max_results: int = Field(
-        title="Max pull requests to return",
+        title="Max merged pull requests",
         alias="maxResults",
         default=100,
         ge=1,
-        description="Maximum number of pull requests to return per repository.",
+        description="Max number of merged pull requests. Note: large numbers may cause rate limits. Merged PRs are only retrieved when 'closed' is selected in the state selector.",
     )
     since: int = Field(
-        title="Since (Days)",
+        title="Closed PRs Lookback Days",
         default=60,
         ge=1,
-        description="Only fetch pull requests updated within the last N days.",
+        description="Numbers of days back for closed pull requests.",
     )
     api: Literal["rest", "graphql"] = Field(
         title="API",
         default="rest",
         description="API to use for fetching pull requests (REST or GraphQL).",
     )
+    enrich_with_first_commit: bool = Field(
+        title="Enrich with first commit",
+        alias="enrichWithFirstCommit",
+        default=False,
+        description=(
+            "When the api selector is set to graphql and this option is enabled, each pull request is enriched with the "
+            "first commit on the branch (OID and committed timestamp in UTC). Use this to measure "
+            "lead time from the initial commit through review and merge."
+        ),
+    )
 
     @property
     def updated_after(self) -> datetime:
         """Convert the since days to a timezone-aware datetime object."""
         return datetime.now(timezone.utc) - timedelta(days=self.since)
+
+    @validator("enrich_with_first_commit")
+    def validate_enrich_with_first_commit(cls, v: bool) -> bool:
+        if v and cls.api != "graphql":
+            raise ValueError(
+                "Enrich with first commit is only supported with GraphQL API."
+            )
+        return v
 
 
 class GithubPullRequestConfig(ResourceConfig):
@@ -459,6 +481,14 @@ class GithubBranchSelector(RepoSearchSelector):
     )
 
 
+class GithubCollaboratorSelector(RepoSearchSelector):
+    affiliation: Literal["all", "direct", "outside"] = Field(
+        title="Affiliation",
+        default="all",
+        description="Filter collaborators by affiliation (all, direct, outside).",
+    )
+
+
 class GithubBranchConfig(ResourceConfig):
     kind: Literal[ObjectKind.BRANCH] = Field(
         title="Github Branch",
@@ -541,7 +571,7 @@ class GithubCollaboratorConfig(ResourceConfig):
         title="Github Collaborator",
         description="Github collaborator resource kind.",
     )
-    selector: RepoSearchSelector = Field(
+    selector: GithubCollaboratorSelector = Field(
         title="Collaborator selector",
         description="Selector for the collaborator resource.",
     )

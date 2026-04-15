@@ -7,6 +7,158 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- towncrier release notes start -->
 
+## 0.2.47 (2026-04-13)
+
+
+### Bug Fixes
+
+- Removed obsolete `dast_scan_result` from `CheckmarxOneScanResultResourcesConfig.kind`.
+
+
+## 0.2.46 (2026-04-12)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.5
+
+
+## 0.2.45 (2026-04-09)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.4
+
+
+## 0.2.44 (2026-04-08)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.3
+
+
+## 0.2.43 (2026-04-06)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.2
+
+
+## 0.2.42 (2026-04-06)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.1
+
+
+## 0.2.41 (2026-04-06)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.0
+
+
+## 0.2.40 (2026-04-06)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.39.1
+
+
+## 0.2.39 (2026-04-05)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.39.0
+
+
+## 0.2.38 (2026-03-30)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.27
+
+
+## 0.2.37 (2026-03-25)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.24
+
+
+## 0.2.36 (2026-03-24)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.23
+
+
+## 0.2.35 (2026-03-23)
+
+
+### Bug Fixes
+
+- Treated HTTP 502 (Bad Gateway) and 503 (Service Unavailable) responses from the Checkmarx API as ignorable transient errors
+
+
+## 0.2.34 (2026-03-22)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.22
+
+
+## 0.2.33 (2026-03-19)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.21
+
+
+## 0.2.32 (2026-03-18)
+
+
+### Improvements
+
+- Added project ID to DAST, SAST, and KICS scan results for improved traceability
+
+
+## 0.2.31 (2026-03-17)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.20
+
+
+## 0.2.30 (2026-03-17)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.38.19
+
+
+## 0.2.29 (2026-03-17)
+
+
+### Improvements
+
+- Updated `enrich_scan_result` to include `project_id` for scan result resource kinds (`sca` & `containers`)
+
+
 ## 0.2.28 (2026-03-16)
 
 
