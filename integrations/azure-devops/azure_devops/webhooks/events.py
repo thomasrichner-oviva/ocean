@@ -81,8 +81,8 @@ class ReleaseEvents(StrEnum):
     https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops
     """
 
-    RELEASE_CREATED = "ms.azure-devops-release.release-created-event"
-    RELEASE_ABANDONED = "ms.azure-devops-release.release-abandoned-event"
+    RELEASE_CREATED = "ms.vss-release.release-created-event"
+    RELEASE_ABANDONED = "ms.vss-release.release-abandoned-event"
 
 
 class ReleaseDeploymentEvents(StrEnum):
@@ -91,5 +91,5 @@ class ReleaseDeploymentEvents(StrEnum):
     https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops
     """
 
-    DEPLOYMENT_COMPLETED = "ms.azure-devops-release.deployment-completed-event"
-    DEPLOYMENT_STARTED = "ms.azure-devops-release.deployment-started-event"
+    DEPLOYMENT_COMPLETED = "ms.vss-release.deployment-completed-event"
+    DEPLOYMENT_STARTED = "ms.vss-release.deployment-started-event"

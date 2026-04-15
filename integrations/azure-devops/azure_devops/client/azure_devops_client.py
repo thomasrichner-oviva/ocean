@@ -1327,6 +1327,8 @@ class AzureDevopsClient(HTTPBaseClient):
         if webhook_subscription.publisherId == ADVANCED_SECURITY_PUBLISHER_ID:
             subscription_base_url = self._advsec_base_url
             params = ADVANCED_SECURITY_API_PARAMS
+        elif webhook_subscription.publisherId == RELEASE_PUBLISHER_ID:
+            subscription_base_url = self._format_service_url("vsrm")
 
         create_subscription_url = (
             f"{subscription_base_url}/{API_URL_PREFIX}/hooks/subscriptions"
@@ -1356,6 +1358,8 @@ class AzureDevopsClient(HTTPBaseClient):
         if webhook_subscription.publisherId == ADVANCED_SECURITY_PUBLISHER_ID:
             subscription_base_url = self._advsec_base_url
             params = ADVANCED_SECURITY_API_PARAMS
+        elif webhook_subscription.publisherId == RELEASE_PUBLISHER_ID:
+            subscription_base_url = self._format_service_url("vsrm")
 
         delete_subscription_url = f"{subscription_base_url}/{API_URL_PREFIX}/hooks/subscriptions/{webhook_subscription.id}"
         logger.info(f"Deleting subscription to event: {webhook_subscription.json()}")
