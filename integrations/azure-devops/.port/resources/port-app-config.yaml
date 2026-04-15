@@ -76,7 +76,7 @@ resources:
     port:
       entity:
         mappings:
-          identifier: .__projectId + "/" + (.id | tostring) | gsub(" "; "")
+          identifier: .__project.id + "/" + (.id | tostring) | gsub(" "; "")
           title: .fields."System.Title"
           blueprint: '"azureDevopsWorkItem"'
           properties:
@@ -93,7 +93,7 @@ resources:
           relations:
             project: .__projectId | gsub(" "; "")
             column: >-
-              .fields."System.WorkItemType"+"-"+.fields."System.BoardColumn"+"-"+.__projectId
+              .fields."System.WorkItemType"+"-"+.fields."System.BoardColumn"+"-"+.__project.id
               | gsub(" "; "")
   - kind: column
     selector:
