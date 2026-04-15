@@ -585,6 +585,50 @@ class AzureDevopsClient(HTTPBaseClient):
                 ):
                     yield releases
 
+    async def generate_release_definitions(
+        self,
+    ) -> AsyncGenerator[list[dict[str, Any]], None]:
+        async for projects in self.generate_projects():
+            for project in projects:
+                definitions_url = (
+                    self._format_service_url("vsrm")
+                    + f"/{project['id']}/{API_URL_PREFIX}/release/definitions"
+                )
+                additional_params = {"$expand": "environments"}
+                async for (
+                    definitions
+                ) in self._get_paginated_by_top_and_continuation_token(
+                    definitions_url, additional_params=additional_params
+                ):
+                    for definition in definitions:
+                        definition["__project"] = project
+                    yield definitions
+
+    async def generate_release_environments(
+        self,
+    ) -> AsyncGenerator[list[dict[str, Any]], None]:
+        async for projects in self.generate_projects():
+            for project in projects:
+                releases_url = (
+                    self._format_service_url("vsrm")
+                    + f"/{project['id']}/{API_URL_PREFIX}/release/releases"
+                )
+                additional_params = {"$expand": "environments"}
+                async for releases in self._get_paginated_by_top_and_continuation_token(
+                    releases_url, additional_params=additional_params
+                ):
+                    environments: list[dict[str, Any]] = []
+                    for release in releases:
+                        for env in release.get("environments", []):
+                            env["__release"] = {
+                                "id": release["id"],
+                                "name": release["name"],
+                            }
+                            env["__project"] = project
+                            environments.append(env)
+                    if environments:
+                        yield environments
+
     async def generate_pipeline_runs(
         self,
     ) -> AsyncGenerator[list[dict[str, Any]], None]:

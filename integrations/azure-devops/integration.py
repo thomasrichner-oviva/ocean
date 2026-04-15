@@ -416,6 +416,28 @@ class AzureDevopsEnvironmentConfig(ResourceConfig):
     )
 
 
+class AzureDevopsReleaseDefinitionConfig(ResourceConfig):
+    kind: Literal[Kind.RELEASE_DEFINITION] = Field(
+        title="Azure Devops Release Definition",
+        description="Azure Devops release definition resource kind.",
+    )
+    selector: AzureDevopsSelector = Field(
+        title="Release definition selector",
+        description="Selector for the release definition resource.",
+    )
+
+
+class AzureDevopsReleaseEnvironmentConfig(ResourceConfig):
+    kind: Literal[Kind.RELEASE_ENVIRONMENT] = Field(
+        title="Azure Devops Release Environment",
+        description="Azure Devops release environment resource kind.",
+    )
+    selector: AzureDevopsSelector = Field(
+        title="Release environment selector",
+        description="Selector for the release environment resource.",
+    )
+
+
 class AzureDevopsReleaseDeploymentConfig(ResourceConfig):
     kind: Literal[Kind.RELEASE_DEPLOYMENT] = Field(
         default=Kind.RELEASE_DEPLOYMENT,
@@ -499,6 +521,8 @@ class GitPortAppConfig(PortAppConfig):
         | AzureDevopsPipelineStageConfig
         | AzureDevopsPipelineRunConfig
         | AzureDevopsEnvironmentConfig
+        | AzureDevopsReleaseDefinitionConfig
+        | AzureDevopsReleaseEnvironmentConfig
         | AzureDevopsReleaseDeploymentConfig
         | AzureDevopsPipelineDeploymentConfig
         | AzureDevopsIterationConfig

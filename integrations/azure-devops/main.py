@@ -248,6 +248,22 @@ async def resync_releases(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
         yield releases
 
 
+@ocean.on_resync(Kind.RELEASE_DEFINITION)
+async def resync_release_definitions(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
+    azure_devops_client = AzureDevopsClient.create_from_ocean_config()
+    async for definitions in azure_devops_client.generate_release_definitions():
+        logger.info(f"Resyncing {len(definitions)} release definitions")
+        yield definitions
+
+
+@ocean.on_resync(Kind.RELEASE_ENVIRONMENT)
+async def resync_release_environments(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
+    azure_devops_client = AzureDevopsClient.create_from_ocean_config()
+    async for environments in azure_devops_client.generate_release_environments():
+        logger.info(f"Resyncing {len(environments)} release environments")
+        yield environments
+
+
 @ocean.on_resync(Kind.BUILD)
 async def resync_builds(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
     azure_devops_client = AzureDevopsClient.create_from_ocean_config()
