@@ -190,6 +190,7 @@ async def test_deployment_handle_event_completed_success(
             "deployment": {
                 "release": {"id": 10},
                 "releaseEnvironment": {"id": 5},
+                "definitionEnvironmentId": 3,
             }
         },
     }
@@ -200,7 +201,7 @@ async def test_deployment_handle_event_completed_success(
     assert len(result.updated_raw_results) == 1
     assert result.updated_raw_results[0]["id"] == 99
     assert len(result.deleted_raw_results) == 0
-    mock_client.get_release_deployment.assert_called_once_with("project-123", 10, 5)
+    mock_client.get_release_deployment.assert_called_once_with("project-123", 10, 3)
 
 
 @pytest.mark.asyncio
@@ -256,6 +257,7 @@ async def test_deployment_handle_event_not_found(
             "deployment": {
                 "release": {"id": 10},
                 "releaseEnvironment": {"id": 5},
+                "definitionEnvironmentId": 3,
             }
         },
     }

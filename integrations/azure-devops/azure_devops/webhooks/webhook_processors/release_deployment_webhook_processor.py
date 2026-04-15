@@ -29,10 +29,8 @@ class ReleaseDeploymentWebhookProcessor(AzureDevOpsBaseWebhookProcessor):
             return False
 
         resource = payload.get("resource", {})
-        # deployment-completed has resource.deployment
         if resource.get("deployment"):
             return True
-        # deployment-started has resource.environment with releaseId
         if resource.get("environment", {}).get("releaseId"):
             return True
         return False
@@ -53,13 +51,10 @@ class ReleaseDeploymentWebhookProcessor(AzureDevOpsBaseWebhookProcessor):
         project_id = payload["resourceContainers"]["project"]["id"]
         resource = payload["resource"]
 
-        # Extract release_id and environment_id from the two different payload shapes
         if "deployment" in resource:
-            # deployment-completed event
             release_id = resource["deployment"]["release"]["id"]
-            environment_id = resource["deployment"]["releaseEnvironment"]["id"]
+            environment_id = resource["deployment"]["definitionEnvironmentId"]
         else:
-            # deployment-started event
             release_id = resource["environment"]["releaseId"]
             environment_id = resource["environment"]["definitionEnvironmentId"]
 
