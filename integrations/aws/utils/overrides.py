@@ -8,24 +8,35 @@ from typing import List
 
 
 class RegionPolicy(BaseModel):
-    allow: List[str] = Field(default_factory=list)
-    deny: List[str] = Field(default_factory=list)
+    allow: List[str] = Field(
+        default_factory=list,
+        title="Allow List",
+        description="List of AWS regions to explicitly include when syncing resources. If non-empty, only these regions will be synced. Example: ['us-east-1', 'eu-west-1']",
+    )
+    deny: List[str] = Field(
+        default_factory=list,
+        title="Deny List",
+        description="List of AWS regions to explicitly exclude when syncing resources. Regions in this list will always be skipped. Example: ['ap-southeast-1', 'sa-east-1']",
+    )
 
 
 class AWSDescribeResourcesSelector(Selector):
     use_get_resource_api: bool = Field(
         alias="useGetResourceAPI",
         default=False,
+        title="Use Get Resource API",
         description="When enabled, uses the AWS Cloud Control GetResource API to fetch full resource details instead of relying solely on list results.",
     )
     region_policy: RegionPolicy = Field(
         alias="regionPolicy",
         default_factory=RegionPolicy,
+        title="Region Policy",
         description="Controls which AWS regions are included or excluded when syncing resources. Uses allow/deny lists to filter regions.",
     )
     list_group_resources: bool = Field(
         alias="listGroupResources",
         default=False,
+        title="List Group Resources",
         description="When enabled, lists resources belonging to AWS Resource Groups instead of querying all resources of the given type.",
     )
 
@@ -64,7 +75,14 @@ class AWSDescribeResourcesSelector(Selector):
 
 
 class AWSResourceConfig(ResourceConfig):
-    selector: AWSDescribeResourcesSelector
+    selector: AWSDescribeResourcesSelector = Field(
+        title="Selector",
+        description="Defines which AWS resources to include in the sync, including region filtering and API options.",
+    )
+    kind: str = Field(
+        title="AWS Resource Config",
+        description="Use this to map AWS resources supported by the <a target='_blank' href='https://docs.aws.amazon.com/cloudcontrolapi/latest/userguide/supported-resources.html'>AWS Cloud Control API</a> by setting the kind name to the resource type.\n\nExample: AWS::S3::Bucket",
+    )
 
 
 class AWSPortAppConfig(PortAppConfig):
