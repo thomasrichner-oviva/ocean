@@ -248,15 +248,6 @@ class CheckmarxOneContainersResourcesConfig(ResourceConfig):
     )
 
 
-class CheckmarxOneDastScanResultLegacyResourcesConfig(ResourceConfig):
-    kind: Literal["dast_scan_result"] = Field(
-        title="Checkmarx DAST Scan Result (Legacy)",
-        description="A dynamic application security testing (DAST) vulnerability result from a Checkmarx One scan (legacy kind)",
-    )
-    selector: CheckmarxOneResultSelector = Field(
-        title="DAST Scan Result Selector",
-        description="Selector for filtering DAST scan results",
-    )
 
 
 class CheckmarxOneDastScanModel(BaseModel):
@@ -402,7 +393,6 @@ class CheckmarxOnePortAppConfig(PortAppConfig):
         | CheckmarxOneKicsResourcesConfig
         | CheckmarxOneScaResourcesConfig
         | CheckmarxOneContainersResourcesConfig
-        | CheckmarxOneDastScanResultLegacyResourcesConfig
         | CheckmarxOneDastScanResourcesConfig
         | CheckmarxOneDastScanResultResourcesConfig
         | CheckmarxOneApplicationResourcesConfig
