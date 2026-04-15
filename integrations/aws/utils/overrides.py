@@ -4,7 +4,7 @@ from port_ocean.core.handlers.port_app_config.models import (
     Selector,
 )
 from pydantic import Field, BaseModel
-from typing import List
+from typing import ClassVar, List
 
 
 class RegionPolicy(BaseModel):
@@ -87,4 +87,4 @@ class AWSResourceConfig(ResourceConfig):
 
 class AWSPortAppConfig(PortAppConfig):
     resources: list[AWSResourceConfig] = Field(default_factory=list)  # type: ignore
-    allow_custom_kinds = True
+    allow_custom_kinds: ClassVar[bool] = True
