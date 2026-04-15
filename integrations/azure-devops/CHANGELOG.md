@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- towncrier release notes start -->
 
+## 0.8.14 (2026-04-15)
+
+
+### Features
+
+- Added live event support for releases and release deployments via ADO service hooks (release created, abandoned, deployment started, deployment completed)
+
+
 ## 0.8.13 (2026-04-15)
 
 
