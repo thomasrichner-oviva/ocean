@@ -1162,10 +1162,21 @@ class TestGitLabClient:
     ) -> None:
         """Exceptions from individual branch fetches are logged and skipped; successful results are still yielded."""
         mock_projects = [
-            {"id": 1, "path_with_namespace": "test/ok-project", "default_branch": "main"},
-            {"id": 2, "path_with_namespace": "test/bad-project", "default_branch": "main"},
+            {
+                "id": 1,
+                "path_with_namespace": "test/ok-project",
+                "default_branch": "main",
+            },
+            {
+                "id": 2,
+                "path_with_namespace": "test/bad-project",
+                "default_branch": "main",
+            },
         ]
-        mock_branch = {"name": "main", "__project": {"path_with_namespace": "test/ok-project"}}
+        mock_branch = {
+            "name": "main",
+            "__project": {"path_with_namespace": "test/ok-project"},
+        }
         error = Exception("connection timeout")
 
         with (
