@@ -325,9 +325,11 @@ async def on_resync_branches(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
             projects_batch,
             max_concurrent=DEFAULT_MAX_CONCURRENT,
             default_branches_only=selector.default_branch_only,
-            params=build_branch_params(selector)
-            if not selector.default_branch_only
-            else None,
+            params=(
+                build_branch_params(selector)
+                if not selector.default_branch_only
+                else None
+            ),
         ):
             yield branches_batch
 
