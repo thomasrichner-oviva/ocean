@@ -253,7 +253,15 @@ class GitLabClient:
                 *[_fetch(project) for project in projects_batch],
                 return_exceptions=True,
             )
-            branches = [r for r in results if isinstance(r, dict) and r]
+            branches = []
+            for project, result in zip(projects_batch, results):
+                if isinstance(result, BaseException):
+                    logger.error(
+                        f"Failed to fetch default branch for project "
+                        f"'{project.get('path_with_namespace', project.get('id'))}': {result}"
+                    )
+                elif isinstance(result, dict) and result:
+                    branches.append(result)
             if branches:
                 logger.info(f"Received batch with {len(branches)} default branches")
                 yield branches

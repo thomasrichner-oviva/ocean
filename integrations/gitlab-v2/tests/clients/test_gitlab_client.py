@@ -1157,6 +1157,37 @@ class TestGitLabClient:
             assert results[0]["name"] == "main"
             mock_get_single.assert_called_once_with(mock_projects[0], "main")
 
+    async def test_get_branches_default_only_logs_and_skips_failed_project(
+        self, client: GitLabClient
+    ) -> None:
+        """Exceptions from individual branch fetches are logged and skipped; successful results are still yielded."""
+        mock_projects = [
+            {"id": 1, "path_with_namespace": "test/ok-project", "default_branch": "main"},
+            {"id": 2, "path_with_namespace": "test/bad-project", "default_branch": "main"},
+        ]
+        mock_branch = {"name": "main", "__project": {"path_with_namespace": "test/ok-project"}}
+        error = Exception("connection timeout")
+
+        with (
+            patch.object(
+                client,
+                "get_single_branch",
+                AsyncMock(side_effect=[mock_branch, error]),
+            ),
+            patch("gitlab.clients.gitlab_client.logger") as mock_logger,
+        ):
+            results = []
+            async for batch in client.get_branches(
+                mock_projects, max_concurrent=5, default_branches_only=True
+            ):
+                results.extend(batch)
+
+        assert results == [mock_branch]
+        mock_logger.error.assert_called_once()
+        error_call = mock_logger.error.call_args[0][0]
+        assert "test/bad-project" in error_call
+        assert "connection timeout" in error_call
+
     async def test_get_branches_all(self, client: GitLabClient) -> None:
         """Test that default_branches_only=False lists all branches via paginated enrichment"""
         mock_projects = [
