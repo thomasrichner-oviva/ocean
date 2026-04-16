@@ -29,10 +29,16 @@ class ReleaseDeploymentWebhookProcessor(AzureDevOpsBaseWebhookProcessor):
             return False
 
         resource = payload.get("resource", {})
-        if resource.get("deployment"):
+        deployment = resource.get("deployment")
+        if deployment:
+            release_id = deployment.get("release", {}).get("id")
+            environment_id = deployment.get("definitionEnvironmentId")
+            return release_id is not None and environment_id is not None
+
+        environment = resource.get("environment", {})
+        if environment.get("releaseId") and environment.get("definitionEnvironmentId"):
             return True
-        if resource.get("environment", {}).get("releaseId"):
-            return True
+
         return False
 
     async def should_process_event(self, event: WebhookEvent) -> bool:

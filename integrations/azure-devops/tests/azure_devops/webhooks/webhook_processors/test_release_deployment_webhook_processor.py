@@ -110,7 +110,7 @@ async def test_deployment_validate_payload_completed(
         "resource": {
             "deployment": {
                 "release": {"id": 10},
-                "releaseEnvironment": {"id": 5},
+                "definitionEnvironmentId": 3,
             }
         },
     }
@@ -165,6 +165,78 @@ async def test_deployment_validate_payload_missing_deployment_and_environment(
         "publisherId": RELEASE_PUBLISHER_ID,
         "resourceContainers": {"project": {"id": "project-123"}},
         "resource": {},
+    }
+    assert await deployment_processor.validate_payload(invalid_payload) is False
+
+
+@pytest.mark.asyncio
+async def test_deployment_validate_payload_completed_missing_release_id(
+    deployment_processor: ReleaseDeploymentWebhookProcessor,
+    mock_event_context: None,
+) -> None:
+    invalid_payload = {
+        "eventType": ReleaseDeploymentEvents.DEPLOYMENT_COMPLETED,
+        "publisherId": RELEASE_PUBLISHER_ID,
+        "resourceContainers": {"project": {"id": "project-123"}},
+        "resource": {
+            "deployment": {
+                "definitionEnvironmentId": 3,
+            }
+        },
+    }
+    assert await deployment_processor.validate_payload(invalid_payload) is False
+
+
+@pytest.mark.asyncio
+async def test_deployment_validate_payload_completed_missing_definition_environment_id(
+    deployment_processor: ReleaseDeploymentWebhookProcessor,
+    mock_event_context: None,
+) -> None:
+    invalid_payload = {
+        "eventType": ReleaseDeploymentEvents.DEPLOYMENT_COMPLETED,
+        "publisherId": RELEASE_PUBLISHER_ID,
+        "resourceContainers": {"project": {"id": "project-123"}},
+        "resource": {
+            "deployment": {
+                "release": {"id": 10},
+            }
+        },
+    }
+    assert await deployment_processor.validate_payload(invalid_payload) is False
+
+
+@pytest.mark.asyncio
+async def test_deployment_validate_payload_started_missing_release_id(
+    deployment_processor: ReleaseDeploymentWebhookProcessor,
+    mock_event_context: None,
+) -> None:
+    invalid_payload = {
+        "eventType": ReleaseDeploymentEvents.DEPLOYMENT_STARTED,
+        "publisherId": RELEASE_PUBLISHER_ID,
+        "resourceContainers": {"project": {"id": "project-123"}},
+        "resource": {
+            "environment": {
+                "definitionEnvironmentId": 5,
+            }
+        },
+    }
+    assert await deployment_processor.validate_payload(invalid_payload) is False
+
+
+@pytest.mark.asyncio
+async def test_deployment_validate_payload_started_missing_definition_environment_id(
+    deployment_processor: ReleaseDeploymentWebhookProcessor,
+    mock_event_context: None,
+) -> None:
+    invalid_payload = {
+        "eventType": ReleaseDeploymentEvents.DEPLOYMENT_STARTED,
+        "publisherId": RELEASE_PUBLISHER_ID,
+        "resourceContainers": {"project": {"id": "project-123"}},
+        "resource": {
+            "environment": {
+                "releaseId": 10,
+            }
+        },
     }
     assert await deployment_processor.validate_payload(invalid_payload) is False
 
