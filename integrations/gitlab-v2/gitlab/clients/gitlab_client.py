@@ -208,6 +208,62 @@ class GitLabClient:
             logger.info(f"Received batch with {len(releases_batch)} releases")
             yield releases_batch
 
+    async def get_single_branch(
+        self, project: dict[str, Any], branch_name: str
+    ) -> dict[str, Any] | None:
+        """Fetch a single branch by name from the given project."""
+        encoded_id = quote(str(project["id"]), safe="")
+        encoded_branch = quote(branch_name, safe="")
+        branch = await self.rest.send_api_request(
+            "GET", f"projects/{encoded_id}/repository/branches/{encoded_branch}"
+        )
+        if not branch:
+            return None
+        return self.enrich_with_project_path(branch, project["path_with_namespace"])
+
+    async def get_branches(
+        self,
+        projects_batch: list[dict[str, Any]],
+        max_concurrent: int = 10,
+        default_branches_only: bool = True,
+        params: Optional[dict[str, Any]] = None,
+    ) -> AsyncIterator[list[dict[str, Any]]]:
+        """Fetch branches for each project in the batch.
+
+        When default_branches_only is True, fetches only the default branch for each
+        project via a single targeted request instead of listing all branches.
+
+        Args:
+            projects_batch: List of projects to fetch branches for
+            max_concurrent: Maximum number of concurrent requests
+            default_branches_only: When True, fetch only the default branch per project
+            params: Additional query parameters (regex, search) for non-default-only mode
+        """
+        if default_branches_only:
+            semaphore = asyncio.Semaphore(max_concurrent)
+
+            async def _fetch(project: dict[str, Any]) -> dict[str, Any] | None:
+                async with semaphore:
+                    default_branch = project.get("default_branch")
+                    if not default_branch:
+                        return None
+                    return await self.get_single_branch(project, default_branch)
+
+            results = await asyncio.gather(
+                *[_fetch(project) for project in projects_batch],
+                return_exceptions=True,
+            )
+            branches = [r for r in results if isinstance(r, dict) and r]
+            if branches:
+                logger.info(f"Received batch with {len(branches)} default branches")
+                yield branches
+        else:
+            async for branches_batch in self.get_projects_resource_with_enrichment(
+                projects_batch, "repository/branches", max_concurrent, params=params
+            ):
+                logger.info(f"Received batch with {len(branches_batch)} branches")
+                yield branches_batch
+
     async def _enrich_project_resources(
         self,
         project: dict[str, Any],
@@ -233,6 +289,7 @@ class GitLabClient:
         projects_batch: list[dict[str, Any]],
         resource_type: str,
         max_concurrent: int = 10,
+        params: Optional[dict[str, Any]] = None,
     ) -> AsyncIterator[list[dict[str, Any]]]:
         semaphore = asyncio.Semaphore(max_concurrent)
 
@@ -243,8 +300,7 @@ class GitLabClient:
                     self._enrich_project_resources,
                     project,
                     self.rest.get_paginated_project_resource(
-                        str(project["id"]),
-                        resource_type,
+                        str(project["id"]), resource_type, params=params
                     ),
                 ),
             )

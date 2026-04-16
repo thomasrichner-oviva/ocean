@@ -9,7 +9,11 @@ from port_ocean.utils.async_iterators import (
 )
 import asyncio
 from gitlab.clients.client_factory import create_gitlab_client
-from gitlab.clients.utils import build_group_params, build_project_params
+from gitlab.clients.utils import (
+    build_group_params,
+    build_project_params,
+    build_branch_params,
+)
 from gitlab.helpers.utils import ObjectKind, enrich_resources_with_project
 from integration import (
     GitLabFilesResourceConfig,
@@ -24,6 +28,7 @@ from integration import (
     ReleaseResourceConfig,
     TagResourceConfig,
     GitlabIssueResourceConfig,
+    BranchResourceConfig,
 )
 
 from gitlab.webhook.webhook_processors.merge_request_webhook_processor import (
@@ -296,6 +301,32 @@ async def on_resync_releases(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
             projects_batch, max_concurrent=DEFAULT_MAX_CONCURRENT
         ):
             yield releases_batch
+
+
+@ocean.on_resync(ObjectKind.BRANCH)
+async def on_resync_branches(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
+    client = create_gitlab_client()
+    selector = cast(BranchResourceConfig, event.resource_config).selector
+    include_only_active_projects = selector.include_only_active_projects
+
+    async for projects_batch in client.get_projects(
+        params=build_project_params(
+            include_only_active_projects=include_only_active_projects
+        ),
+        max_concurrent=DEFAULT_MAX_CONCURRENT,
+        include_languages=False,
+    ):
+        logger.info(f"Processing batch of {len(projects_batch)} projects for branches")
+
+        async for branches_batch in client.get_branches(
+            projects_batch,
+            max_concurrent=DEFAULT_MAX_CONCURRENT,
+            default_branches_only=selector.default_branch_only,
+            params=build_branch_params(selector)
+            if not selector.default_branch_only
+            else None,
+        ):
+            yield branches_batch
 
 
 @ocean.on_resync(ObjectKind.GROUP_WITH_MEMBERS)

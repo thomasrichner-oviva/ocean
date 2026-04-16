@@ -1007,6 +1007,154 @@ class TestGitLabClient:
                 mock_projects, "releases", 5
             )
 
+    async def test_get_single_branch(self, client: GitLabClient) -> None:
+        """Test fetching a single branch by name enriches it with the project path"""
+        project = {"id": 1, "path_with_namespace": "test/project"}
+        mock_branch = {"name": "main", "protected": True, "merged": False}
+
+        with patch.object(
+            client.rest,
+            "send_api_request",
+            AsyncMock(return_value=mock_branch),
+        ) as mock_request:
+            result = await client.get_single_branch(project, "main")
+
+            assert result is not None
+            assert result["name"] == "main"
+            assert result["__project"] == {"path_with_namespace": "test/project"}
+            mock_request.assert_called_once_with(
+                "GET", "projects/1/repository/branches/main"
+            )
+
+    async def test_get_single_branch_returns_none_on_empty_response(
+        self, client: GitLabClient
+    ) -> None:
+        """Test that get_single_branch returns None when the API returns an empty response"""
+        project = {"id": 1, "path_with_namespace": "test/project"}
+
+        with patch.object(
+            client.rest,
+            "send_api_request",
+            AsyncMock(return_value={}),
+        ):
+            result = await client.get_single_branch(project, "main")
+
+            assert result is None
+
+    async def test_get_branches_default_only(self, client: GitLabClient) -> None:
+        """Test that default_branches_only=True fetches one branch per project by name"""
+        mock_projects = [
+            {
+                "id": 1,
+                "path_with_namespace": "test/project",
+                "default_branch": "main",
+            },
+            {
+                "id": 2,
+                "path_with_namespace": "test/project2",
+                "default_branch": "master",
+            },
+        ]
+        mock_branch_1 = {
+            "name": "main",
+            "__project": {"path_with_namespace": "test/project"},
+        }
+        mock_branch_2 = {
+            "name": "master",
+            "__project": {"path_with_namespace": "test/project2"},
+        }
+
+        with patch.object(
+            client,
+            "get_single_branch",
+            AsyncMock(side_effect=[mock_branch_1, mock_branch_2]),
+        ) as mock_get_single:
+            results = []
+            async for batch in client.get_branches(
+                mock_projects, max_concurrent=5, default_branches_only=True
+            ):
+                results.extend(batch)
+
+            assert len(results) == 2
+            assert results[0]["name"] == "main"
+            assert results[1]["name"] == "master"
+            mock_get_single.assert_any_call(mock_projects[0], "main")
+            mock_get_single.assert_any_call(mock_projects[1], "master")
+
+    async def test_get_branches_default_only_skips_project_without_default_branch(
+        self, client: GitLabClient
+    ) -> None:
+        """Test that projects without a default_branch are skipped in default-only mode"""
+        mock_projects = [
+            {
+                "id": 1,
+                "path_with_namespace": "test/project",
+                "default_branch": "main",
+            },
+            {
+                "id": 2,
+                "path_with_namespace": "test/empty",
+                "default_branch": None,
+            },
+        ]
+        mock_branch = {
+            "name": "main",
+            "__project": {"path_with_namespace": "test/project"},
+        }
+
+        with patch.object(
+            client,
+            "get_single_branch",
+            AsyncMock(return_value=mock_branch),
+        ) as mock_get_single:
+            results = []
+            async for batch in client.get_branches(
+                mock_projects, max_concurrent=5, default_branches_only=True
+            ):
+                results.extend(batch)
+
+            assert len(results) == 1
+            assert results[0]["name"] == "main"
+            mock_get_single.assert_called_once_with(mock_projects[0], "main")
+
+    async def test_get_branches_all(self, client: GitLabClient) -> None:
+        """Test that default_branches_only=False lists all branches via paginated enrichment"""
+        mock_projects = [
+            {
+                "id": 1,
+                "path_with_namespace": "test/project",
+                "default_branch": "main",
+            },
+        ]
+        mock_branches = [
+            {"name": "main", "__project": {"path_with_namespace": "test/project"}},
+            {
+                "name": "feature/foo",
+                "__project": {"path_with_namespace": "test/project"},
+            },
+        ]
+        params = {"search": "feature"}
+
+        with patch.object(
+            client,
+            "get_projects_resource_with_enrichment",
+            return_value=async_mock_generator([mock_branches]),
+        ) as mock_get_resource:
+            results = []
+            async for batch in client.get_branches(
+                mock_projects,
+                max_concurrent=5,
+                default_branches_only=False,
+                params=params,
+            ):
+                results.extend(batch)
+
+            assert len(results) == 2
+            assert results == mock_branches
+            mock_get_resource.assert_called_once_with(
+                mock_projects, "repository/branches", 5, params=params
+            )
+
     async def test_get_projects_resource_with_enrichment(
         self, client: GitLabClient
     ) -> None:

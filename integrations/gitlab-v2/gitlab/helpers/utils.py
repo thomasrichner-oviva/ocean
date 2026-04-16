@@ -22,6 +22,7 @@ class ObjectKind(StrEnum):
     FOLDER = "folder"
     TAG = "tag"
     RELEASE = "release"
+    BRANCH = "branch"
 
 
 def parse_file_content(
