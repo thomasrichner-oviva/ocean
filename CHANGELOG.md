@@ -7,6 +7,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 <!-- towncrier release notes start -->
 
+## 0.40.8 (2026-04-16)
+
+### Improvements
+
+- When loading an external OAuth access token from a file fails, the message is logged at error level instead of debug, so token read failures are visible without raising the log level.
+
 ## 0.40.7 (2026-04-15)
 
 ### Improvements
