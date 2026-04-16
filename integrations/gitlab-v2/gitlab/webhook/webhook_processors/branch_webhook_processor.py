@@ -29,11 +29,16 @@ class BranchWebhookProcessor(_GitlabAbstractWebhookProcessor):
     async def handle_event(
         self, payload: EventPayload, resource_config: ResourceConfig
     ) -> WebhookEventRawResults:
+        ref = payload["ref"]
+        if not ref.startswith("refs/heads/"):
+            logger.debug(f"Ignoring non-branch ref '{ref}'")
+            return WebhookEventRawResults(
+                updated_raw_results=[], deleted_raw_results=[]
+            )
+
         project_id = payload["project"]["id"]
         project_path = payload["project"]["path_with_namespace"]
-        # Use replace rather than split("/")[-1] to preserve slashes in branch names
-        # e.g. refs/heads/feature/my-feature -> feature/my-feature
-        branch_name = payload["ref"].replace("refs/heads/", "", 1)
+        branch_name = ref[len("refs/heads/") :]
 
         logger.info(
             f"Handling branch webhook event for project '{project_path}' and branch '{branch_name}'"
@@ -88,4 +93,7 @@ class BranchWebhookProcessor(_GitlabAbstractWebhookProcessor):
                 updated_raw_results=[branch], deleted_raw_results=[]
             )
 
+        logger.info(
+            f"Branch '{branch_name}' not found in project '{project_path}', skipping"
+        )
         return WebhookEventRawResults(updated_raw_results=[], deleted_raw_results=[])

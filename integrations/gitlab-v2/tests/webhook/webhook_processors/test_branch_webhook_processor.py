@@ -54,6 +54,20 @@ class TestBranchWebhookProcessor:
     ) -> None:
         assert await processor.get_matching_kinds(mock_event) == [ObjectKind.BRANCH]
 
+    # --- non-branch ref guard ---
+
+    async def test_non_branch_ref_is_ignored(
+        self, processor: BranchWebhookProcessor, base_payload: dict[str, Any]
+    ) -> None:
+        payload = {**base_payload, "ref": "refs/notes/commits"}
+        processor._gitlab_webhook_client = MagicMock()
+
+        result = await processor.handle_event(payload, make_resource_config())
+
+        processor._gitlab_webhook_client.get_single_branch.assert_not_called()
+        assert result.updated_raw_results == []
+        assert result.deleted_raw_results == []
+
     # --- happy path ---
 
     async def test_handle_event_returns_branch(

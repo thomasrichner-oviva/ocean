@@ -1026,6 +1026,46 @@ class TestGitLabClient:
                 "GET", "projects/1/repository/branches/main"
             )
 
+    async def test_get_single_branch_encodes_slash_in_branch_name(
+        self, client: GitLabClient
+    ) -> None:
+        """Branch names with slashes (e.g. feature/foo-bar) must be percent-encoded in the URL."""
+        project = {"id": 1, "path_with_namespace": "test/project"}
+        mock_branch = {"name": "feature/foo-bar", "protected": False, "merged": False}
+
+        with patch.object(
+            client.rest,
+            "send_api_request",
+            AsyncMock(return_value=mock_branch),
+        ) as mock_request:
+            result = await client.get_single_branch(project, "feature/foo-bar")
+
+            assert result is not None
+            assert result["name"] == "feature/foo-bar"
+            mock_request.assert_called_once_with(
+                "GET", "projects/1/repository/branches/feature%2Ffoo-bar"
+            )
+
+    async def test_get_single_branch_encodes_hash_in_branch_name(
+        self, client: GitLabClient
+    ) -> None:
+        """Branch names with hashes (e.g. bugfix#123) must be percent-encoded in the URL."""
+        project = {"id": 1, "path_with_namespace": "test/project"}
+        mock_branch = {"name": "bugfix#123", "protected": False, "merged": False}
+
+        with patch.object(
+            client.rest,
+            "send_api_request",
+            AsyncMock(return_value=mock_branch),
+        ) as mock_request:
+            result = await client.get_single_branch(project, "bugfix#123")
+
+            assert result is not None
+            assert result["name"] == "bugfix#123"
+            mock_request.assert_called_once_with(
+                "GET", "projects/1/repository/branches/bugfix%23123"
+            )
+
     async def test_get_single_branch_returns_none_on_empty_response(
         self, client: GitLabClient
     ) -> None:
