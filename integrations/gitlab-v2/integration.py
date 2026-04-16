@@ -85,7 +85,7 @@ class BranchSelector(Selector):
         default=None,
         alias="includeOnlyActiveProjects",
         title="Include Only Active Projects",
-        description="Only fetched branches on projects with specified status",
+        description="Only fetch branches from projects with the specified status",
     )
     regex: Optional[str] = Field(
         default=None,
