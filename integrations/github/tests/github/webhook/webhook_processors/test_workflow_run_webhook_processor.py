@@ -24,7 +24,7 @@ from integration import GithubWorkflowRunConfig, RepoSearchSelector
 @pytest.fixture
 def resource_config() -> ResourceConfig:
     return GithubWorkflowRunConfig(
-        kind=ObjectKind.WORKFLOW_RUN,
+        kind="workflow-run",
         selector=RepoSearchSelector(query="true"),
         port=PortResourceConfig(
             entity=MappingsConfig(

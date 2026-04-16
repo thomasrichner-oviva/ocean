@@ -31,7 +31,6 @@ from typing import Any, Dict, List, Optional, Type, Literal
 
 from github.entity_processors.file_entity_processor import FileEntityProcessor
 from github.helpers.models import RepoSearchParams
-from github.helpers.utils import ObjectKind
 from github.webhook.live_event_group_selector import get_primary_id
 from github.helpers.port_app_config import (
     is_repo_managed_mapping,
@@ -148,7 +147,7 @@ class GithubRepositorySelector(RepoSearchSelector, IncludedFilesConfig):
     ) -> dict[str, Any]:
         if values.get("include") and values.get("includedRelations"):
             raise ValueError(
-                "You cannot supply both 'include' and 'includedRelations' at the same time."
+                "Each repository mapping must define exactly one of the following: 'include' or 'includedRelations'. Do not use both simultaneously."
             )
         return values
 
@@ -158,7 +157,7 @@ class GithubRepositoryConfig(ResourceConfig):
         title="Repository Selector",
         description="Selector for the repository resource.",
     )
-    kind: Literal[ObjectKind.REPOSITORY] = Field(
+    kind: Literal["repository"] = Field(
         title="Github Repository",
         description="Github repository resource kind.",
     )
@@ -250,7 +249,7 @@ For more information, see <a target='_blank' href='https://docs.port.io/build-yo
 
 
 class GithubFileResourceConfig(ResourceConfig):
-    kind: Literal[ObjectKind.FILE] = Field(
+    kind: Literal["file"] = Field(
         title="Github File",
         description="Github file resource kind.",
     )
@@ -261,7 +260,7 @@ class GithubFileResourceConfig(ResourceConfig):
 
 
 class GithubUserConfig(ResourceConfig):
-    kind: Literal[ObjectKind.USER] = Field(
+    kind: Literal["user"] = Field(
         title="Github User",
         description="Github user resource kind.",
     )
@@ -272,7 +271,7 @@ class GithubFolderResourceConfig(ResourceConfig):
         title="Folder selector",
         description="Selector for the folder resource.",
     )
-    kind: Literal[ObjectKind.FOLDER] = Field(
+    kind: Literal["folder"] = Field(
         title="Github Folder",
         description="Github folder resource kind.",
     )
@@ -325,7 +324,7 @@ class GithubPullRequestConfig(ResourceConfig):
         title="Pull request selector",
         description="Selector for the pull request resource.",
     )
-    kind: Literal[ObjectKind.PULL_REQUEST] = Field(
+    kind: Literal["pull-request"] = Field(
         title="Github Pull Request",
         description="Github pull request resource kind.",
     )
@@ -354,7 +353,7 @@ class GithubIssueConfig(ResourceConfig):
         title="Issue selector",
         description="Selector for the issue resource.",
     )
-    kind: Literal[ObjectKind.ISSUE] = Field(
+    kind: Literal["issue"] = Field(
         title="Github Issue",
         description="Github issue resource kind.",
     )
@@ -373,7 +372,7 @@ class GithubTeamConfig(ResourceConfig):
         title="Team selector",
         description="Selector for the team resource.",
     )
-    kind: Literal[ObjectKind.TEAM] = Field(
+    kind: Literal["team"] = Field(
         title="Github Team",
         description="Github team resource kind.",
     )
@@ -426,7 +425,7 @@ class GithubDependabotAlertConfig(ResourceConfig):
         title="Dependabot alert selector",
         description="Selector for the dependabot alert resource.",
     )
-    kind: Literal[ObjectKind.DEPENDABOT_ALERT] = Field(
+    kind: Literal["dependabot-alert"] = Field(
         title="Github Dependabot Alert",
         description="Github dependabot alert resource kind.",
     )
@@ -452,7 +451,7 @@ class GithubCodeScanningAlertConfig(ResourceConfig):
         title="Code scanning alert selector",
         description="Selector for the code scanning alert resource.",
     )
-    kind: Literal[ObjectKind.CODE_SCANNING_ALERT] = Field(
+    kind: Literal["code-scanning-alerts"] = Field(
         title="Github Code Scanning Alert",
         description="Github code scanning alert resource kind.",
     )
@@ -476,7 +475,7 @@ class GithubDeploymentConfig(ResourceConfig):
         title="Deployment selector",
         description="Selector for the deployment resource.",
     )
-    kind: Literal[ObjectKind.DEPLOYMENT] = Field(
+    kind: Literal["deployment"] = Field(
         title="Github Deployment",
         description="Github deployment resource kind.",
     )
@@ -500,7 +499,7 @@ class GithubDeploymentStatusConfig(ResourceConfig):
         title="Deployment status selector",
         description="Selector for the deployment status resource.",
     )
-    kind: Literal[ObjectKind.DEPLOYMENT_STATUS] = Field(
+    kind: Literal["deployment-status"] = Field(
         title="Github Deployment Status",
         description="Github deployment status resource kind.",
     )
@@ -525,7 +524,7 @@ class GithubSecretScanningAlertConfig(ResourceConfig):
         title="Secret scanning alert selector",
         description="Selector for the secret scanning alert resource.",
     )
-    kind: Literal[ObjectKind.SECRET_SCANNING_ALERT] = Field(
+    kind: Literal["secret-scanning-alerts"] = Field(
         title="Github Secret Scanning Alert",
         description="Github secret scanning alert resource kind.",
     )
@@ -564,7 +563,7 @@ class GithubCollaboratorSelector(
 
 
 class GithubBranchConfig(ResourceConfig):
-    kind: Literal[ObjectKind.BRANCH] = Field(
+    kind: Literal["branch"] = Field(
         title="Github Branch",
         description="Github branch resource kind.",
     )
@@ -575,7 +574,7 @@ class GithubBranchConfig(ResourceConfig):
 
 
 class GithubOrganizationConfig(ResourceConfig):
-    kind: Literal[ObjectKind.ORGANIZATION] = Field(
+    kind: Literal["organization"] = Field(
         title="Github Organization",
         description="Github organization resource kind.",
     )
@@ -586,7 +585,7 @@ class GithubOrganizationConfig(ResourceConfig):
 
 
 class GithubWorkflowConfig(ResourceConfig):
-    kind: Literal[ObjectKind.WORKFLOW] = Field(
+    kind: Literal["workflow"] = Field(
         title="Github Workflow",
         description="Github workflow resource kind.",
     )
@@ -597,7 +596,7 @@ class GithubWorkflowConfig(ResourceConfig):
 
 
 class GithubWorkflowRunConfig(ResourceConfig):
-    kind: Literal[ObjectKind.WORKFLOW_RUN] = Field(
+    kind: Literal["workflow-run"] = Field(
         title="Github Workflow Run",
         description="Github workflow run resource kind.",
     )
@@ -608,7 +607,7 @@ class GithubWorkflowRunConfig(ResourceConfig):
 
 
 class GithubReleaseConfig(ResourceConfig):
-    kind: Literal[ObjectKind.RELEASE] = Field(
+    kind: Literal["release"] = Field(
         title="Github Release",
         description="Github release resource kind.",
     )
@@ -619,7 +618,7 @@ class GithubReleaseConfig(ResourceConfig):
 
 
 class GithubTagConfig(ResourceConfig):
-    kind: Literal[ObjectKind.TAG] = Field(
+    kind: Literal["tag"] = Field(
         title="Github Tag",
         description="Github tag resource kind.",
     )
@@ -630,7 +629,7 @@ class GithubTagConfig(ResourceConfig):
 
 
 class GithubEnvironmentConfig(ResourceConfig):
-    kind: Literal[ObjectKind.ENVIRONMENT] = Field(
+    kind: Literal["environment"] = Field(
         title="Github Environment",
         description="Github environment resource kind.",
     )
@@ -641,7 +640,7 @@ class GithubEnvironmentConfig(ResourceConfig):
 
 
 class GithubCollaboratorConfig(ResourceConfig):
-    kind: Literal[ObjectKind.COLLABORATOR] = Field(
+    kind: Literal["collaborator"] = Field(
         title="Github Collaborator",
         description="Github collaborator resource kind.",
     )

@@ -1,6 +1,5 @@
 import copy
 from typing import Any, AsyncGenerator, Iterator
-from github.helpers.utils import ObjectKind
 from port_ocean.core.handlers.port_app_config.models import (
     PortResourceConfig,
     EntityMapping,
@@ -49,7 +48,7 @@ def mock_port_app_config() -> GithubPortAppConfig:
         create_missing_related_entities=False,
         resources=[
             GithubTeamConfig(
-                kind=ObjectKind.TEAM,
+                kind="team",
                 selector=GithubTeamSector(query="true"),
                 port=PortResourceConfig(
                     entity=MappingsConfig(

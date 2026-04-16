@@ -21,7 +21,7 @@ from integration import GithubEnvironmentConfig, RepoSearchSelector
 @pytest.fixture
 def resource_config() -> ResourceConfig:
     return GithubEnvironmentConfig(
-        kind=ObjectKind.ENVIRONMENT,
+        kind="environment",
         selector=RepoSearchSelector(query="true"),
         port=PortResourceConfig(
             entity=MappingsConfig(

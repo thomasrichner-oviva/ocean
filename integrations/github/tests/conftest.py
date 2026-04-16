@@ -22,7 +22,7 @@ from github.clients.auth.personal_access_token_authenticator import (
     PersonalTokenAuthenticator,
 )
 from github.clients.client_factory import create_github_client
-from github.helpers.utils import GithubClientType, ObjectKind
+from github.helpers.utils import GithubClientType
 from github.clients.http.base_client import AbstractGithubClient
 
 TEST_INTEGRATION_CONFIG: Dict[str, Any] = {
@@ -118,7 +118,7 @@ def mock_port_app_config() -> GithubPortAppConfig:
         repository_type="all",
         resources=[
             GithubRepositoryConfig(
-                kind=ObjectKind.REPOSITORY,
+                kind="repository",
                 selector=GithubRepositorySelector(query="true"),
                 port=PortResourceConfig(
                     entity=MappingsConfig(

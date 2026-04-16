@@ -24,7 +24,7 @@ from integration import (
 @pytest.fixture
 def resource_config() -> GithubSecretScanningAlertConfig:
     return GithubSecretScanningAlertConfig(
-        kind=ObjectKind.SECRET_SCANNING_ALERT,
+        kind="secret-scanning-alerts",
         selector=GithubSecretScanningAlertSelector(
             query="true", state="open", hideSecret=True
         ),

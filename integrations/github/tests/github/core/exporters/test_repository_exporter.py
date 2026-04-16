@@ -1,12 +1,14 @@
 from typing import Any, AsyncGenerator
 import pytest
+from pydantic import ValidationError
+
 from unittest.mock import AsyncMock, patch, MagicMock
 import httpx
 from github.core.exporters.repository_exporter import (
     RestRepositoryExporter,
 )
 from github.core.options import ListRepositoryOptions, SingleRepositoryOptions
-from integration import GithubPortAppConfig
+from integration import GithubPortAppConfig, GithubRepositorySelector
 from port_ocean.context.event import event_context
 from github.helpers.models import RepoSearchParams
 from github.clients.http.rest_client import GithubRestClient
@@ -274,3 +276,51 @@ class TestRestRepositoryExporter:
                     f"{rest_client.base_url}/search/repositories",
                     {"q": "org:test-org fork:true is:all"},
                 )
+
+    async def test_normalized_relations_from_included_relations_alias(self) -> None:
+        selector = GithubRepositorySelector.parse_obj(
+            {
+                "query": "true",
+                "includedRelations": {
+                    "teams": True,
+                    "sbom": False,
+                    "collaborators": {"affiliation": "direct"},
+                },
+            }
+        )
+
+        assert selector.normalized_relations == {
+            "teams": {"include": True},
+            "collaborators": {"include": True, "affiliation": "direct"},
+        }
+
+    async def test_included_relations_cannot_be_supplied_with_include(self) -> None:
+        with pytest.raises(ValidationError) as exc:
+            GithubRepositorySelector.parse_obj(
+                {
+                    "query": "true",
+                    "include": ["teams"],
+                    "includedRelations": {"collaborators": {"affiliation": "all"}},
+                }
+            )
+
+        assert (
+            "Each repository mapping must define exactly one of the following: 'include' or 'includedRelations'. Do not use both simultaneously."
+            in str(exc.value)
+        )
+
+    async def test_normalized_relations_falls_back_to_include_list(self) -> None:
+        selector = GithubRepositorySelector.parse_obj(
+            {"query": "true", "include": ["teams", "sbom"]}
+        )
+
+        assert selector.normalized_relations == {
+            "teams": {"include": True},
+            "sbom": {"include": True},
+        }
+
+    async def test_included_relations_forbids_unknown_keys(self) -> None:
+        with pytest.raises(ValidationError):
+            GithubRepositorySelector.parse_obj(
+                {"query": "true", "includedRelations": {"unknown": True}}
+            )

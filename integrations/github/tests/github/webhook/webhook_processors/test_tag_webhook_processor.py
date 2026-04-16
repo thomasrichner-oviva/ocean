@@ -23,7 +23,7 @@ from integration import GithubTagConfig, RepoSearchSelector
 @pytest.fixture
 def resource_config() -> ResourceConfig:
     return GithubTagConfig(
-        kind=ObjectKind.TAG,
+        kind="tag",
         selector=RepoSearchSelector(query="true"),
         port=PortResourceConfig(
             entity=MappingsConfig(

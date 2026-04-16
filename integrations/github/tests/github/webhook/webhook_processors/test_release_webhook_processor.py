@@ -23,7 +23,7 @@ from integration import GithubReleaseConfig, RepoSearchSelector
 @pytest.fixture
 def resource_config() -> ResourceConfig:
     return GithubReleaseConfig(
-        kind=ObjectKind.RELEASE,
+        kind="release",
         selector=RepoSearchSelector(query="true"),
         port=PortResourceConfig(
             entity=MappingsConfig(

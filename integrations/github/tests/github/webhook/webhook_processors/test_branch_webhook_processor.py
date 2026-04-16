@@ -22,7 +22,7 @@ from github.helpers.utils import ObjectKind
 @pytest.fixture
 def resource_config() -> GithubBranchConfig:
     return GithubBranchConfig(
-        kind=ObjectKind.BRANCH,
+        kind="branch",
         selector=GithubBranchSelector(
             query="true", detailed=False, protectionRules=False
         ),

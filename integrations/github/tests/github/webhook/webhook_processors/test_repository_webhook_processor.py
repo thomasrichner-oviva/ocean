@@ -23,7 +23,7 @@ from github.helpers.utils import ObjectKind
 @pytest.fixture
 def resource_config() -> GithubRepositoryConfig:
     return GithubRepositoryConfig(
-        kind=ObjectKind.REPOSITORY,
+        kind="repository",
         selector=GithubRepositorySelector(query="true"),
         port=PortResourceConfig(
             entity=MappingsConfig(

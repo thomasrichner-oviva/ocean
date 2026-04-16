@@ -26,7 +26,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 @pytest.fixture
 def folder_resource_config() -> GithubFolderResourceConfig:
     return GithubFolderResourceConfig(
-        kind=ObjectKind.FOLDER,
+        kind="folder",
         selector=GithubFolderSelector(
             query="true",
             folders=[

@@ -23,7 +23,7 @@ from integration import GithubDeploymentStatusConfig, GithubDeploymentStatusSele
 @pytest.fixture
 def resource_config() -> GithubDeploymentStatusConfig:
     return GithubDeploymentStatusConfig(
-        kind=ObjectKind.DEPLOYMENT_STATUS,
+        kind="deployment-status",
         selector=GithubDeploymentStatusSelector(query="true"),
         port=PortResourceConfig(
             entity=MappingsConfig(
@@ -184,7 +184,7 @@ class TestDeploymentStatusWebhookProcessor:
     ) -> None:
         """Test that events are filtered when task doesn't match."""
         resource_config = GithubDeploymentStatusConfig(
-            kind=ObjectKind.DEPLOYMENT_STATUS,
+            kind="deployment-status",
             selector=GithubDeploymentStatusSelector(
                 query="true", task="deploy:migrations"
             ),
@@ -226,7 +226,7 @@ class TestDeploymentStatusWebhookProcessor:
     ) -> None:
         """Test that events are filtered when environment doesn't match."""
         resource_config = GithubDeploymentStatusConfig(
-            kind=ObjectKind.DEPLOYMENT_STATUS,
+            kind="deployment-status",
             selector=GithubDeploymentStatusSelector(
                 query="true", environment="staging"
             ),

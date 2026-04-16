@@ -121,7 +121,7 @@ class TestTeamMemberWebhookProcessor:
         }
 
         resource_config = GithubTeamConfig(
-            kind=ObjectKind.TEAM,
+            kind="team",
             selector=GithubTeamSector(members=members_selector_setting, query="true"),
             port=PortResourceConfig(
                 entity=MappingsConfig(
@@ -276,7 +276,7 @@ class TestTeamMemberWebhookProcessor:
         }
 
         resource_config = GithubTeamConfig(
-            kind=ObjectKind.TEAM,
+            kind="team",
             selector=GithubTeamSector(members=members_selector_setting, query="true"),
             port=PortResourceConfig(
                 entity=MappingsConfig(

@@ -74,7 +74,7 @@ INVALID_MEMBERSHIP_COLLABORATOR_PAYLOADS: dict[str, Any] = {
 @pytest.fixture
 def resource_config() -> GithubCollaboratorConfig:
     return GithubCollaboratorConfig(
-        kind=ObjectKind.COLLABORATOR,
+        kind="collaborator",
         selector=GithubCollaboratorSelector(query="true", affiliation="all"),
         port=PortResourceConfig(
             entity=MappingsConfig(

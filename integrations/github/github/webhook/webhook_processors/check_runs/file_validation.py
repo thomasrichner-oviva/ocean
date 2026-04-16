@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, TypedDict, cast
+from typing import Any, Dict, List, Optional, TypedDict
 from loguru import logger
 from github.core.exporters.file_exporter.utils import (
     FileObject,
@@ -268,7 +268,7 @@ def get_file_validation_mappings(
     for resource in port_app_config.resources:
         # Check if this is a file resource by checking the kind attribute
         if hasattr(resource, "kind") and resource.kind == "file":
-            file_resource_config = cast("GithubFileResourceConfig", resource)
+            file_resource_config = resource
             selector = file_resource_config.selector
 
             matching_patterns = [

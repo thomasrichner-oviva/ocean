@@ -21,7 +21,6 @@ from integration import (
 from github.webhook.webhook_processors.check_runs.check_runs_validator_webhook_processor import (
     CheckRunValidatorWebhookProcessor,
 )
-from github.helpers.utils import ObjectKind
 from github.webhook.webhook_processors.check_runs.file_validation import (
     ResourceConfigToPatternMapping,
 )
@@ -52,7 +51,7 @@ def checkrun_validator_webhook_processor(
 @pytest.fixture
 def pull_request_resource_config() -> GithubPullRequestConfig:
     return GithubPullRequestConfig(
-        kind=ObjectKind.PULL_REQUEST,
+        kind="pull-request",
         selector=GithubPullRequestSelector(
             query="true",
             states=["open"],
@@ -73,7 +72,7 @@ def pull_request_resource_config() -> GithubPullRequestConfig:
 @pytest.fixture
 def file_resource_config() -> GithubFileResourceConfig:
     return GithubFileResourceConfig(
-        kind=ObjectKind.FILE,
+        kind="file",
         selector=GithubFileSelector(
             query="true",
             files=[

@@ -24,7 +24,7 @@ from github.webhook.webhook_processors.user_webhook_processor import (
 @pytest.fixture
 def resource_config() -> ResourceConfig:
     return ResourceConfig(
-        kind=ObjectKind.USER,
+        kind="user",
         selector=Selector(query="true"),
         port=PortResourceConfig(
             entity=MappingsConfig(
