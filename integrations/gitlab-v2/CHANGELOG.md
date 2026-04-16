@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Add support for Gitlab branches
+- Added support for `branch` kind, enabling scheduled syncing of GitLab branches
+- Added live event updates for `branch` kind via webhooks
 
 
 ## 0.6.15 (2026-04-16)
