@@ -95,7 +95,7 @@ class BranchSelector(Selector):
     search: Optional[str] = Field(
         default=None,
         title="Search",
-        description="Return list of branches containing the search string. You can use ^term to find branches that begin with term, and term$ to find branches that end with term.",
+        description="Return list of branches containing the search string. You can use ^term to find branches that begin with term, and term$ to find branches that end with term. If regex is also set, regex takes precedence and this field is ignored.",
     )
     default_branch_only: bool = Field(
         default=True,
