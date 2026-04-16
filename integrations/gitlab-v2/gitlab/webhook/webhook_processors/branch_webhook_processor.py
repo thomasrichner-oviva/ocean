@@ -1,3 +1,4 @@
+import re
 from typing import cast
 
 from loguru import logger
@@ -38,14 +39,6 @@ class BranchWebhookProcessor(_GitlabAbstractWebhookProcessor):
             f"Handling branch webhook event for project '{project_path}' and branch '{branch_name}'"
         )
 
-        if payload.get("after") == DELETED_COMMIT_SHA:
-            deleted_branch = self._gitlab_webhook_client.enrich_with_project_path(
-                {"name": branch_name}, project_path
-            )
-            return WebhookEventRawResults(
-                updated_raw_results=[], deleted_raw_results=[deleted_branch]
-            )
-
         selector = cast(BranchResourceConfig, resource_config).selector
         if selector.default_branch_only:
             default_branch = payload["project"].get("default_branch")
@@ -57,6 +50,34 @@ class BranchWebhookProcessor(_GitlabAbstractWebhookProcessor):
                 return WebhookEventRawResults(
                     updated_raw_results=[], deleted_raw_results=[]
                 )
+
+        if selector.regex:
+            compiled = re.compile(selector.regex)
+            if not compiled.fullmatch(branch_name):
+                logger.info(
+                    f"Skipping branch '{branch_name}' for project '{project_path}': "
+                    f"regex {selector.regex} does not match ('{branch_name}')"
+                )
+                return WebhookEventRawResults(
+                    updated_raw_results=[], deleted_raw_results=[]
+                )
+        elif selector.search:
+            if selector.search not in branch_name:
+                logger.info(
+                    f"Skipping branch '{branch_name}' for project '{project_path}': "
+                    f"search string - {selector.search} - does not match ('{branch_name}')"
+                )
+                return WebhookEventRawResults(
+                    updated_raw_results=[], deleted_raw_results=[]
+                )
+
+        if payload.get("after") == DELETED_COMMIT_SHA:
+            deleted_branch = self._gitlab_webhook_client.enrich_with_project_path(
+                {"name": branch_name}, project_path
+            )
+            return WebhookEventRawResults(
+                updated_raw_results=[], deleted_raw_results=[deleted_branch]
+            )
 
         project = {"id": project_id, "path_with_namespace": project_path}
         branch = await self._gitlab_webhook_client.get_single_branch(
