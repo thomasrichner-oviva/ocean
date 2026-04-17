@@ -99,18 +99,18 @@ class TestTaskDefinitionProperties:
 
     def test_initialization_with_properties(self) -> None:
         properties = TaskDefinitionProperties(
-            TaskDefinitionArn="arn:aws:ecs:us-east-1:123456789012:task-definition/my-task:1",
-            Family="my-task",
-            Revision=1,
-            Status="ACTIVE",
-            Cpu="256",
-            Memory="512",
-            NetworkMode="awsvpc",
-            RequiresCompatibilities=["FARGATE"],
-            ContainerDefinitions=[
+            taskDefinitionArn="arn:aws:ecs:us-east-1:123456789012:task-definition/my-task:1",
+            family="my-task",
+            revision=1,
+            status="ACTIVE",
+            cpu="256",
+            memory="512",
+            networkMode="awsvpc",
+            requiresCompatibilities=["FARGATE"],
+            containerDefinitions=[
                 {"name": "web", "image": "nginx:latest", "cpu": 256, "memory": 512}
             ],
-            Tags=[{"key": "env", "value": "prod"}],
+            tags=[{"key": "env", "value": "prod"}],
         )
         assert (
             properties.taskDefinitionArn
@@ -128,11 +128,11 @@ class TestTaskDefinitionProperties:
 
     def test_aliases_work_correctly(self) -> None:
         properties = TaskDefinitionProperties(
-            TaskDefinitionArn="arn:test",
-            Family="test-family",
-            Revision=5,
-            TaskRoleArn="arn:aws:iam::123456789012:role/task-role",
-            ExecutionRoleArn="arn:aws:iam::123456789012:role/exec-role",
+            taskDefinitionArn="arn:test",
+            family="test-family",
+            revision=5,
+            taskRoleArn="arn:aws:iam::123456789012:role/task-role",
+            executionRoleArn="arn:aws:iam::123456789012:role/exec-role",
         )
 
         result = properties.dict(by_alias=True)
@@ -144,31 +144,31 @@ class TestTaskDefinitionProperties:
 
     def test_extra_fields_ignored(self) -> None:
         properties = TaskDefinitionProperties(
-            TaskDefinitionArn="arn:test",
-            Family="test",
-            unknownField="should-be-ignored",
+            taskDefinitionArn="arn:test",
+            family="test",
+            unknownField="should-be-ignored",  # type: ignore[call-arg]
         )
         assert not hasattr(properties, "unknownField")
 
     def test_registered_at_datetime(self) -> None:
         dt = datetime(2024, 6, 15, 10, 30, 0)
-        properties = TaskDefinitionProperties(RegisteredAt=dt)
+        properties = TaskDefinitionProperties(registeredAt=dt)
         assert properties.registeredAt == dt
 
 
 class TestTaskDefinition:
 
     def test_type_is_fixed(self) -> None:
-        td = TaskDefinition(Properties=TaskDefinitionProperties(Family="task1"))
+        td = TaskDefinition(Properties=TaskDefinitionProperties(family="task1"))
         assert td.Type == "AWS::ECS::TaskDefinition"
 
     def test_initialization_with_properties(self) -> None:
         properties = TaskDefinitionProperties(
-            TaskDefinitionArn="arn:aws:ecs:us-east-1:123456789012:task-definition/my-task:1",
-            Family="my-task",
-            Revision=1,
-            Cpu="512",
-            Memory="1024",
+            taskDefinitionArn="arn:aws:ecs:us-east-1:123456789012:task-definition/my-task:1",
+            family="my-task",
+            revision=1,
+            cpu="512",
+            memory="1024",
         )
         td = TaskDefinition(Properties=properties)
         assert td.Properties == properties
@@ -176,14 +176,14 @@ class TestTaskDefinition:
         assert td.Properties.cpu == "512"
 
     def test_dict_exclude_none(self) -> None:
-        td = TaskDefinition(Properties=TaskDefinitionProperties(Family="my-task"))
+        td = TaskDefinition(Properties=TaskDefinitionProperties(family="my-task"))
         data = td.dict(exclude_none=True)
         assert data["Type"] == "AWS::ECS::TaskDefinition"
         assert data["Properties"]["family"] == "my-task"
 
     def test_properties_default_factory(self) -> None:
-        td1 = TaskDefinition(Properties=TaskDefinitionProperties(Family="task1"))
-        td2 = TaskDefinition(Properties=TaskDefinitionProperties(Family="task2"))
+        td1 = TaskDefinition(Properties=TaskDefinitionProperties(family="task1"))
+        td2 = TaskDefinition(Properties=TaskDefinitionProperties(family="task2"))
         assert td1.Properties is not td2.Properties
         assert td1.Properties.family == "task1"
         assert td2.Properties.family == "task2"
