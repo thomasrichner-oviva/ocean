@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improvements
 
-- Added concurrency support for repository fetching across projects (up to 5 concurrent)
+- Added concurrency support for repository fetching across projects
 
 
 ## 0.8.16 (2026-04-16)
