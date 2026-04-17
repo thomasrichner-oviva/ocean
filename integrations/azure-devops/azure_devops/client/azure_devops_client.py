@@ -2,6 +2,7 @@ from azure_devops.webhooks.events import AdvancedSecurityAlertEvents
 import asyncio
 import functools
 import json
+import time  # [CONCURRENCY-DEBUG] TEMP — remove before PR
 import httpx
 from collections import defaultdict
 from itertools import batched
@@ -467,25 +468,72 @@ class AzureDevopsClient(HTTPBaseClient):
                 )
                 yield members
 
+    async def _fetch_repositories_for_project(
+        self,
+        project: dict[str, Any],
+        include_disabled_repositories: bool,
+    ) -> AsyncGenerator[list[dict[str, Any]], None]:
+        # [CONCURRENCY-DEBUG] TEMP — remove before PR
+        start = time.monotonic()
+        logger.info(
+            f"[CONCURRENCY-DEBUG] START fetch project='{project.get('name')}' id={project['id']}"
+        )
+        repos_url = f"{self._organization_base_url}/{project['id']}/{API_URL_PREFIX}/git/repositories"
+        response = await self.send_request("GET", repos_url)
+        if not response:
+            # [CONCURRENCY-DEBUG] TEMP — remove before PR
+            logger.info(
+                f"[CONCURRENCY-DEBUG] SKIP  project='{project.get('name')}' id={project['id']} "
+                f"(no response, {time.monotonic() - start:.2f}s)"
+            )
+            return
+        repositories = response.json()["value"]
+        # [CONCURRENCY-DEBUG] TEMP — remove before PR
+        logger.info(
+            f"[CONCURRENCY-DEBUG] FETCHED project='{project.get('name')}' id={project['id']} "
+            f"repos={len(repositories)} api_elapsed={time.monotonic() - start:.2f}s"
+        )
+        if include_disabled_repositories:
+            yield repositories
+        else:
+            yield [repo for repo in repositories if self._repository_is_healthy(repo)]
+
     @cache_iterator_result()
     async def generate_repositories(
         self, include_disabled_repositories: bool = True
     ) -> AsyncGenerator[list[dict[Any, Any]], None]:
         async for projects in self.generate_projects():
-            for project in projects:
-                repos_url = f"{self._organization_base_url}/{project['id']}/{API_URL_PREFIX}/git/repositories"
-                response = await self.send_request("GET", repos_url)
-                if not response:
-                    continue
-                repositories = response.json()["value"]
-                if include_disabled_repositories:
-                    yield repositories
-                else:
-                    yield [
-                        repo
-                        for repo in repositories
-                        if self._repository_is_healthy(repo)
-                    ]
+            # [CONCURRENCY-DEBUG] TEMP — remove before PR
+            batch_start = time.monotonic()
+            logger.info(
+                f"[CONCURRENCY-DEBUG] BATCH projects={len(projects)} "
+                f"concurrency={MAX_CONCURRENT_PROJECTS} include_disabled={include_disabled_repositories}"
+            )
+            semaphore = asyncio.BoundedSemaphore(MAX_CONCURRENT_PROJECTS)
+            tasks = [
+                semaphore_async_iterator(
+                    semaphore,
+                    functools.partial(
+                        self._fetch_repositories_for_project,
+                        project,
+                        include_disabled_repositories,
+                    ),
+                )
+                for project in projects
+            ]
+            # [CONCURRENCY-DEBUG] TEMP — remove before PR
+            yielded_batches = 0
+            total_repos = 0
+            async for repositories in stream_async_iterators_tasks(*tasks):
+                yielded_batches += 1
+                total_repos += len(repositories)
+                yield repositories
+            # [CONCURRENCY-DEBUG] TEMP — remove before PR
+            logger.info(
+                f"[CONCURRENCY-DEBUG] BATCH DONE projects={len(projects)} "
+                f"yielded_batches={yielded_batches} total_repos={total_repos} "
+                f"elapsed={time.monotonic() - batch_start:.2f}s"
+            )
 
     async def generate_branches(
         self,
