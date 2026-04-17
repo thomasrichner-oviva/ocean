@@ -37,10 +37,7 @@
           "title": "Team Type",
           "type": "string",
           "description": "Type of team (e.g., MEMBER_INVITE)",
-          "enum": [
-            "MEMBER_INVITE",
-            "OPEN"
-          ]
+          "enum": ["MEMBER_INVITE", "OPEN"]
         },
         "description": {
           "title": "Description",
@@ -216,6 +213,81 @@
       "reporter": {
         "target": "jiraUser",
         "title": "Reporter",
+        "required": false,
+        "many": false
+      }
+    }
+  },
+  {
+    "identifier": "jiraBoard",
+    "title": "Jira Board",
+    "icon": "Jira",
+    "schema": {
+      "properties": {
+        "url": {
+          "title": "Board URL",
+          "type": "string",
+          "format": "url",
+          "description": "Direct URL to the board in Jira"
+        },
+        "type": {
+          "title": "Board Type",
+          "type": "string",
+          "description": "The type of the board",
+          "enum": ["scrum", "kanban", "simple"],
+          "enumColors": {
+            "scrum": "blue",
+            "kanban": "green",
+            "simple": "lightGray"
+          }
+        },
+        "isPrivate": {
+          "title": "Private",
+          "type": "boolean",
+          "description": "Whether the board is private"
+        },
+        "projectKey": {
+          "title": "Project Key",
+          "type": "string",
+          "description": "The key of the project this board belongs to"
+        },
+        "projectName": {
+          "title": "Project Name",
+          "type": "string",
+          "description": "The name of the project this board belongs to"
+        },
+        "projectTypeKey": {
+          "title": "Project Type",
+          "type": "string",
+          "description": "The type of the project (e.g. software, business)"
+        },
+        "adminUsers": {
+          "title": "Admin Users",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Account IDs of users with admin access to this board"
+        },
+        "adminGroups": {
+          "title": "Admin Groups",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Names of groups with admin access to this board"
+        }
+      },
+      "required": []
+    },
+    "mirrorProperties": {},
+    "calculationProperties": {},
+    "aggregationProperties": {},
+    "relations": {
+      "project": {
+        "title": "Project",
+        "description": "The Jira project this board belongs to",
+        "target": "jiraProject",
         "required": false,
         "many": false
       }

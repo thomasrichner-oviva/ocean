@@ -36,6 +36,9 @@ WEBHOOK_EVENTS = [
     "user_created",
     "user_updated",
     "user_deleted",
+    "board_created",
+    "board_updated",
+    "board_deleted",
 ]
 
 OAUTH2_WEBHOOK_EVENTS = [

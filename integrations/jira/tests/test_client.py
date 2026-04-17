@@ -25,6 +25,61 @@ MOCK_BOARD_API_RESPONSE = {
     "isPrivate": False,
 }
 
+MOCK_BOARD_WITH_ADMINS = {
+    "id": 1,
+    "name": "PORT board",
+    "type": "scrum",
+    "self": "https://exampleorg.atlassian.net/rest/agile/1.0/board/1",
+    "location": {
+        "projectId": 10000,
+        "projectKey": "PORT",
+        "projectName": "Port",
+        "projectTypeKey": "software",
+        "displayName": "Port (PORT)",
+    },
+    "isPrivate": False,
+    "admins": {
+        "users": [
+            {"accountId": "abc123", "displayName": "Alice", "active": True},
+            {"accountId": "def456", "displayName": "Bob", "active": True},
+        ],
+        "groups": [
+            {"name": "jira-admins", "self": "https://..."},
+            {"name": "platform-team", "self": "https://..."},
+        ],
+    },
+}
+
+MOCK_BOARD_WITH_NULL_ACCOUNT_IDS = {
+    **MOCK_BOARD_WITH_ADMINS,
+    "admins": {
+        "users": [
+            {"accountId": None, "displayName": "Ghost User", "active": False},
+            {"accountId": "abc123", "displayName": "Alice", "active": True},
+        ],
+        "groups": [
+            {"name": None, "self": "https://..."},
+            {"name": "jira-admins", "self": "https://..."},
+        ],
+    },
+}
+
+MOCK_BOARD_WITHOUT_ADMINS = {
+    "id": 2,
+    "name": "DEMO board",
+    "type": "simple",
+    "self": "https://exampleorg.atlassian.net/rest/agile/1.0/board/2",
+    "location": {
+        "projectId": 10004,
+        "projectKey": "DEMO",
+        "projectName": "Demo",
+        "projectTypeKey": "software",
+        "displayName": "Demo (DEMO)",
+    },
+    "isPrivate": False,
+    # admins field absent entirely
+}
+
 
 @pytest.fixture(autouse=True)
 def mock_ocean_context() -> None:
@@ -836,3 +891,74 @@ async def test_get_paginated_boards_omits_none_params(
         )
         assert "type" not in call_params
         assert "projectKeyOrId" not in call_params
+
+
+@pytest.mark.asyncio
+async def test_get_paginated_boards_returns_boards_with_admins(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Boards with admins object must be returned as-is for mapping layer."""
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "isLast": True,
+            "values": [MOCK_BOARD_WITH_ADMINS],
+        }
+
+        batches = []
+        async for batch in mock_jira_client.get_paginated_boards():
+            batches.append(batch)
+
+        assert len(batches) == 1
+        board = batches[0][0]
+        assert "admins" in board
+        assert len(board["admins"]["users"]) == 2
+        assert len(board["admins"]["groups"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_paginated_boards_returns_boards_without_admins(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Boards without admins field must be returned as-is — mapping layer handles null safely."""
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "isLast": True,
+            "values": [MOCK_BOARD_WITHOUT_ADMINS],
+        }
+
+        batches = []
+        async for batch in mock_jira_client.get_paginated_boards():
+            batches.append(batch)
+
+        assert len(batches) == 1
+        board = batches[0][0]
+        assert "admins" not in board
+
+
+@pytest.mark.asyncio
+async def test_get_paginated_boards_returns_boards_with_null_account_ids(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Boards with null accountIds in admins.users must still be returned —
+    the mapping layer filters null accountIds via select(.accountId != null)."""
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "isLast": True,
+            "values": [MOCK_BOARD_WITH_NULL_ACCOUNT_IDS],
+        }
+
+        batches = []
+        async for batch in mock_jira_client.get_paginated_boards():
+            batches.append(batch)
+
+        assert len(batches) == 1
+        board = batches[0][0]
+        # Raw data is returned intact — mapping layer does the filtering
+        assert board["admins"]["users"][0]["accountId"] is None
+        assert board["admins"]["users"][1]["accountId"] == "abc123"
