@@ -79,6 +79,7 @@ class JiraClient(OAuthClient):
             self.webhooks_url = f"{self.jira_rest_url}/webhooks/1.0/webhook"
 
         self.api_url = f"{self.jira_rest_url}/api/3"
+        self.agile_api_url = f"{self.jira_rest_url}/agile/1.0"
         self.teams_base_url = f"{self.jira_url}/gateway/api/public/teams/v1/org"
 
         self._rate_limiter = JiraRateLimiter(max_concurrent=MAX_CONCURRENT_REQUESTS)
@@ -176,6 +177,45 @@ class JiraClient(OAuthClient):
 
             if "total" in response_data and start_at >= response_data["total"]:
                 break
+
+    async def _get_agile_paginated_data(
+        self,
+        url: str,
+        extract_key: str = "values",
+        initial_params: dict[str, Any] | None = None,
+    ) -> AsyncGenerator[list[dict[str, Any]], None]:
+        """Paginate Jira Agile REST API endpoints using offset-based pagination."""
+        params: dict[str, Any] = initial_params or {}
+        params.setdefault("maxResults", PAGE_SIZE)
+        start_at = 0
+
+        while True:
+            params["startAt"] = start_at
+            response_data = await self._send_api_request("GET", url, params=params)
+
+            items: list[dict[str, Any]] = response_data.get(extract_key, [])
+
+            if not items:
+                logger.debug(
+                    f"No items returned from {url} at startAt={start_at}, stopping pagination"
+                )
+                break
+
+            yield items
+
+            is_last = response_data.get("isLast")
+            if is_last is True:
+                logger.debug(f"Reached last page for {url} at startAt={start_at}")
+                break
+
+            if is_last is None and len(items) < params["maxResults"]:
+                logger.warning(
+                    f"isLast field absent from agile API response at {url}, "
+                    f"stopping pagination based on item count ({len(items)} < {params['maxResults']})"
+                )
+                break
+
+            start_at += len(items)
 
     async def _get_cursor_paginated_data(
         self,
@@ -509,3 +549,22 @@ class JiraClient(OAuthClient):
             )
             version["__projectKey"] = project["key"]
         return version
+
+    async def get_paginated_boards(
+        self, params: dict[str, Any] | None = None
+    ) -> AsyncGenerator[list[dict[str, Any]], None]:
+        logger.info("Fetching boards from Jira")
+        endpoint = f"{self.agile_api_url}/board"
+
+        async for board_batch in self._get_agile_paginated_data(
+            endpoint, initial_params=params
+        ):
+            logger.info(f"Received board batch with {len(board_batch)} boards")
+            yield board_batch
+
+    async def get_single_board(self, board_id: str) -> dict[str, Any]:
+        """Used by webhook processors to re-fetch board state after board_created or board_updated events."""
+        logger.debug(f"Fetching single board: {board_id}")
+        return await self._send_api_request(
+            "GET", f"{self.agile_api_url}/board/{board_id}"
+        )

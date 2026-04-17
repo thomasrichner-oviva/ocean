@@ -75,3 +75,19 @@ resources:
             subtasks: .fields.subtasks | map(.key)
             assignee: .fields.assignee.accountId
             reporter: .fields.reporter.accountId
+
+  - kind: board
+    selector:
+      query: "true"
+    port:
+      entity:
+        mappings:
+          identifier: .id | tostring
+          title: .name
+          blueprint: '"jiraBoard"'
+          properties:
+            type: .type
+            isPrivate: .isPrivate
+            url: .self
+          relations:
+            project: .location.projectKey // null

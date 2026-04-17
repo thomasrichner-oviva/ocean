@@ -10,6 +10,22 @@ from jira.client import PAGE_SIZE, WEBHOOK_EVENTS, OAUTH2_WEBHOOK_EVENTS, JiraCl
 from jira.overrides import JiraIssueSelector
 
 
+MOCK_BOARD_API_RESPONSE = {
+    "id": 1,
+    "name": "PORT board",
+    "type": "scrum",
+    "self": "https://example.atlassian.net/rest/agile/1.0/board/1",
+    "location": {
+        "projectId": 10000,
+        "projectKey": "PORT",
+        "projectName": "Port Example Project",
+        "projectTypeKey": "software",
+        "displayName": "Port (PORT)",
+    },
+    "isPrivate": False,
+}
+
+
 @pytest.fixture(autouse=True)
 def mock_ocean_context() -> None:
     """Fixture to mock the Ocean context initialization."""
@@ -18,7 +34,7 @@ def mock_ocean_context() -> None:
         mock_ocean_app.config = MagicMock()
         mock_ocean_app.config.oauth_access_token_file_path = None
         mock_ocean_app.config.integration.config = {
-            "jira_host": "https://getport.atlassian.net",
+            "jira_host": "https://exampleorg.atlassian.net",
             "atlassian_user_email": "jira@atlassian.net",
             "atlassian_user_token": "asdf",
             "atlassian_organisation_id": "asdf",
@@ -657,3 +673,166 @@ async def test_jql_search_post_request_is_marked_retryable(
             json={"jql": "project = TEST", "maxResults": PAGE_SIZE},
             retryable=True,
         )
+
+
+@pytest.mark.asyncio
+async def test_agile_paginator_stops_when_is_last_true(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Paginator must stop when isLast is True even if items were returned."""
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "startAt": 0,
+            "maxResults": 50,
+            "total": 1,
+            "isLast": True,
+            "values": [MOCK_BOARD_API_RESPONSE],
+        }
+
+        batches = []
+        async for batch in mock_jira_client._get_agile_paginated_data(
+            url="https://exampleorg.atlassian.net/rest/agile/1.0/board"
+        ):
+            batches.append(batch)
+
+        assert len(batches) == 1
+        assert batches[0] == [MOCK_BOARD_API_RESPONSE]
+        assert mock_request.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_agile_paginator_stops_on_empty_items(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Paginator must stop immediately when values list is empty."""
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "startAt": 0,
+            "maxResults": 50,
+            "total": 0,
+            "isLast": False,
+            "values": [],
+        }
+
+        batches = []
+        async for batch in mock_jira_client._get_agile_paginated_data(
+            url="https://exampleorg.atlassian.net/rest/agile/1.0/board"
+        ):
+            batches.append(batch)
+
+        assert len(batches) == 0
+        assert mock_request.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_agile_paginator_handles_missing_is_last(
+    mock_jira_client: JiraClient,
+) -> None:
+    """If isLast is absent, paginator must not loop forever.
+    It should stop after the first page that returns fewer items than maxResults.
+    """
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "startAt": 0,
+            "maxResults": 50,
+            "total": 1,
+            # isLast deliberately absent
+            "values": [MOCK_BOARD_API_RESPONSE],
+        }
+
+        batches = []
+        async for batch in mock_jira_client._get_agile_paginated_data(
+            url="https://exampleorg.atlassian.net/rest/agile/1.0/board"
+        ):
+            batches.append(batch)
+
+        assert len(batches) == 1
+        assert mock_request.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_agile_paginator_paginates_across_multiple_pages(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Paginator must continue fetching until isLast is True."""
+    page_1 = {
+        "startAt": 0,
+        "maxResults": 1,
+        "total": 2,
+        "isLast": False,
+        "values": [MOCK_BOARD_API_RESPONSE],
+    }
+    page_2 = {
+        "startAt": 1,
+        "maxResults": 1,
+        "total": 2,
+        "isLast": True,
+        "values": [{**MOCK_BOARD_API_RESPONSE, "id": 2, "name": "Second board"}],
+    }
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.side_effect = [page_1, page_2]
+
+        batches = []
+        async for batch in mock_jira_client._get_agile_paginated_data(
+            url="https://exampleorg.atlassian.net/rest/agile/1.0/board"
+        ):
+            batches.append(batch)
+
+        assert len(batches) == 2
+        assert mock_request.call_count == 2
+        assert batches[0][0]["id"] == 1
+        assert batches[1][0]["id"] == 2
+
+
+@pytest.mark.asyncio
+async def test_get_paginated_boards_passes_type_param(
+    mock_jira_client: JiraClient,
+) -> None:
+    """board_type selector must be passed as 'type' query param to the API."""
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "isLast": True,
+            "values": [MOCK_BOARD_API_RESPONSE],
+        }
+
+        async for _ in mock_jira_client.get_paginated_boards(params={"type": "scrum"}):
+            pass
+
+        call_params = (
+            mock_request.call_args[1].get("params") or mock_request.call_args[0][2]
+        )
+        assert call_params.get("type") == "scrum"
+
+
+@pytest.mark.asyncio
+async def test_get_paginated_boards_omits_none_params(
+    mock_jira_client: JiraClient,
+) -> None:
+    """None selector fields must not appear in the API request params."""
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "isLast": True,
+            "values": [MOCK_BOARD_API_RESPONSE],
+        }
+
+        async for _ in mock_jira_client.get_paginated_boards(params={}):
+            pass
+
+        call_params = (
+            mock_request.call_args[1].get("params") or mock_request.call_args[0][2]
+        )
+        assert "type" not in call_params
+        assert "projectKeyOrId" not in call_params

@@ -1,5 +1,4 @@
-import typing
-from typing import cast
+from typing import cast, Any
 
 from loguru import logger
 from initialize_client import create_jira_client
@@ -14,6 +13,7 @@ from jira.overrides import (
     JiraIssueConfig,
     JiraProjectResourceConfig,
     TeamResourceConfig,
+    JiraBoardResourceConfig,
 )
 from webhook_processors.issue_webhook_processor import IssueWebhookProcessor
 from webhook_processors.project_webhook_processor import ProjectWebhookProcessor
@@ -47,7 +47,7 @@ async def on_resync_issues(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
     client = create_jira_client()
 
     params = {}
-    config = typing.cast(JiraIssueConfig, event.resource_config)
+    config = cast(JiraIssueConfig, event.resource_config)
 
     jql = config.selector.jql.strip() if config.selector.jql else ""
     params["jql"] = jql
@@ -101,6 +101,22 @@ async def on_resync_releases(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
         ]
         async for version_batch in stream_async_iterators_tasks(*version_streams):
             yield version_batch
+
+
+@ocean.on_resync(Kinds.BOARD)
+async def on_resync_boards(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
+    client = create_jira_client()
+    selector = cast(JiraBoardResourceConfig, event.resource_config).selector
+
+    params: dict[str, Any] = {}
+    if selector.board_type is not None:
+        params["type"] = selector.board_type
+    if selector.project_key is not None:
+        params["projectKeyOrId"] = selector.project_key
+
+    async for board_batch in client.get_paginated_boards(params):
+        logger.info(f"Received board batch with {len(board_batch)} boards")
+        yield board_batch
 
 
 # Called once when the integration starts.
