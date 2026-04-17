@@ -1,9 +1,9 @@
 {
-  "identifier": "arn:aws:ecs:eu-west-1:851725549828:task-definition/port-ocean-aws-aws-integration:3",
+  "identifier": "arn:aws:ecs:eu-west-1:123456789012:task-definition/port-ocean-aws-aws-integration:3",
   "title": "port-ocean-aws-aws-integration:3",
   "blueprint": "ecsTaskDefinition",
   "properties": {
-    "taskDefinitionArn": "arn:aws:ecs:eu-west-1:851725549828:task-definition/port-ocean-aws-aws-integration:3",
+    "taskDefinitionArn": "arn:aws:ecs:eu-west-1:123456789012:task-definition/port-ocean-aws-aws-integration:3",
     "family": "port-ocean-aws-aws-integration",
     "revision": 3,
     "status": "ACTIVE",
@@ -40,11 +40,11 @@
         "secrets": [
           {
             "name": "OCEAN__PORT",
-            "valueFrom": "ocean.aws.aws-integration.port_credentials"
+            "valueFrom": "arn:aws:secretsmanager:eu-west-1:123456789012:secret:port-credentials"
           },
           {
             "name": "OCEAN__INTEGRATION",
-            "valueFrom": "ocean.aws.aws-integration.integration_config"
+            "valueFrom": "arn:aws:secretsmanager:eu-west-1:123456789012:secret:integration-config"
           }
         ],
         "logConfiguration": {
@@ -63,14 +63,14 @@
     "memory": "2048",
     "networkMode": "awsvpc",
     "requiresCompatibilities": ["FARGATE"],
-    "taskRoleArn": "arn:aws:iam::851725549828:role/ecs-task-role-port-ocean-aws-aws-integration",
-    "executionRoleArn": "arn:aws:iam::851725549828:role/ecs-task-execution-role-port-ocean-aws-aws-integration",
+    "taskRoleArn": "arn:aws:iam::123456789012:role/ecs-task-role-port-ocean-aws-aws-integration",
+    "executionRoleArn": "arn:aws:iam::123456789012:role/ecs-task-execution-role-port-ocean-aws-aws-integration",
     "volumes": [],
     "placementConstraints": [],
     "tags": [],
     "registeredAt": "2024-08-20T19:54:12.602000+01:00"
   },
   "relations": {
-    "account": "851725549828"
+    "account": "123456789012"
   }
 }
