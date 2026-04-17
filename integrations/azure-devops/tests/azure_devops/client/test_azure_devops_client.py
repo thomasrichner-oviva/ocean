@@ -909,7 +909,11 @@ async def test_generate_repositories_multiple_projects(
                 status_code=200,
                 json={
                     "value": [
-                        {"id": "repo3", "name": "Repo Three", "project": {"id": "proj2"}},
+                        {
+                            "id": "repo3",
+                            "name": "Repo Three",
+                            "project": {"id": "proj2"},
+                        },
                     ]
                 },
             )
