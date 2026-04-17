@@ -565,7 +565,7 @@ class JiraClient(OAuthClient):
             logger.info(f"Received board batch with {len(board_batch)} boards")
             yield board_batch
 
-    async def get_single_board(self, board_id: str) -> dict[str, Any]:
+    async def get_single_board(self, board_id: int) -> dict[str, Any]:
         """Used by webhook processors to re-fetch board state after board_created or board_updated events."""
         logger.debug(f"Fetching single board: {board_id}")
         return await self._send_api_request(

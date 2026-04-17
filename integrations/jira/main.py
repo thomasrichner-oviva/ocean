@@ -5,6 +5,7 @@ from initialize_client import create_jira_client
 from kinds import Kinds
 from port_ocean.context.event import event
 from port_ocean.context.ocean import ocean
+from webhook_processors.board_webhook_processor import BoardWebhookProcessor
 
 from port_ocean.core.ocean_types import ASYNC_GENERATOR_RESYNC_TYPE
 from port_ocean.utils.async_iterators import stream_async_iterators_tasks
@@ -135,3 +136,4 @@ ocean.add_webhook_processor("/webhook", IssueWebhookProcessor)
 ocean.add_webhook_processor("/webhook", ProjectWebhookProcessor)
 ocean.add_webhook_processor("/webhook", UserWebhookProcessor)
 ocean.add_webhook_processor("/webhook", VersionWebhookProcessor)
+ocean.add_webhook_processor("/webhook", BoardWebhookProcessor)
