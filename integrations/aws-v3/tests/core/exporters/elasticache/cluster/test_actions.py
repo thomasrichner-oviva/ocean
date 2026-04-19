@@ -161,8 +161,12 @@ class TestListTagsForResourceAction:
 
         result = await action.execute(cache_clusters)
 
-        expected_result = [{"Tags": [{"Key": "Environment", "Value": "production"}]}]
+        expected_result = [
+            {"Tags": [{"Key": "Environment", "Value": "production"}]},
+            {},
+        ]
         assert result == expected_result
+        assert len(result) == 2
 
         mock_logger.warning.assert_called_once()
         warning_call = mock_logger.warning.call_args[0][0]
@@ -172,6 +176,54 @@ class TestListTagsForResourceAction:
         mock_logger.info.assert_called_once_with(
             "Successfully fetched tags for 1 cache clusters"
         )
+
+    @pytest.mark.asyncio
+    @patch("aws.core.exporters.elasticache.cluster.actions.logger")
+    async def test_execute_first_cluster_fails_maintains_index_alignment(
+        self, mock_logger: MagicMock, action: ListTagsForResourceAction
+    ) -> None:
+        """Test that when first cluster fails, tags are correctly aligned to second cluster."""
+        cache_clusters = [
+            {
+                "CacheClusterId": "cluster-1",
+                "ARN": "arn:aws:elasticache:us-east-1:123456789012:cluster:cluster-1",
+            },
+            {
+                "CacheClusterId": "cluster-2",
+                "ARN": "arn:aws:elasticache:us-east-1:123456789012:cluster:cluster-2",
+            },
+        ]
+
+        def mock_list_tags_for_resource(
+            ResourceName: str, **kwargs: Any
+        ) -> dict[str, Any]:
+            if (
+                ResourceName
+                == "arn:aws:elasticache:us-east-1:123456789012:cluster:cluster-1"
+            ):
+                raise ClientError(
+                    {"Error": {"Code": "AccessDenied", "Message": "Access denied"}},
+                    "ListTagsForResource",
+                )
+            else:
+                return {"TagList": [{"Key": "Environment", "Value": "staging"}]}
+
+        action.client.list_tags_for_resource.side_effect = mock_list_tags_for_resource
+
+        result = await action.execute(cache_clusters)
+
+        expected_result = [
+            {},
+            {"Tags": [{"Key": "Environment", "Value": "staging"}]},
+        ]
+        assert result == expected_result
+        assert len(result) == 2
+        assert result[0] == {}
+        assert result[1] == {"Tags": [{"Key": "Environment", "Value": "staging"}]}
+
+        mock_logger.warning.assert_called_once()
+        warning_call = mock_logger.warning.call_args[0][0]
+        assert "Skipping tags for cache cluster 'cluster-1'" in warning_call
 
     @pytest.mark.asyncio
     @patch("aws.core.exporters.elasticache.cluster.actions.logger")

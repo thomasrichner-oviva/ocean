@@ -145,30 +145,22 @@ class TestElastiCacheClusterExporter:
         async def mock_paginate() -> AsyncGenerator[list[dict[str, Any]], None]:
             yield [
                 {
-                    "CacheClusters": [
-                        {
-                            "CacheClusterId": "cluster-1",
-                            "CacheNodeType": "cache.t3.micro",
-                            "Engine": "redis",
-                        },
-                        {
-                            "CacheClusterId": "cluster-2",
-                            "CacheNodeType": "cache.t3.small",
-                            "Engine": "memcached",
-                        },
-                    ]
-                }
+                    "CacheClusterId": "cluster-1",
+                    "CacheNodeType": "cache.t3.micro",
+                    "Engine": "redis",
+                },
+                {
+                    "CacheClusterId": "cluster-2",
+                    "CacheNodeType": "cache.t3.small",
+                    "Engine": "memcached",
+                },
             ]
             yield [
                 {
-                    "CacheClusters": [
-                        {
-                            "CacheClusterId": "cluster-3",
-                            "CacheNodeType": "cache.t3.medium",
-                            "Engine": "redis",
-                        },
-                    ]
-                }
+                    "CacheClusterId": "cluster-3",
+                    "CacheNodeType": "cache.t3.medium",
+                    "Engine": "redis",
+                },
             ]
 
         class MockPaginator:

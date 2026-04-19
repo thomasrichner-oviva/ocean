@@ -26,6 +26,7 @@ class ListTagsForResourceAction(Action):
         )
 
         results: list[dict[str, Any]] = []
+        success_count = 0
         for idx, tag_result in enumerate(tag_results):
             if isinstance(tag_result, Exception):
                 cluster_id = cache_clusters[idx].get("CacheClusterId", "unknown")
@@ -33,6 +34,7 @@ class ListTagsForResourceAction(Action):
                     logger.warning(
                         f"Skipping tags for cache cluster '{cluster_id}': {tag_result}"
                     )
+                    results.append({})
                     continue
                 else:
                     logger.error(
@@ -40,7 +42,8 @@ class ListTagsForResourceAction(Action):
                     )
                     raise tag_result
             results.extend(cast(list[dict[str, Any]], tag_result))
-        logger.info(f"Successfully fetched tags for {len(results)} cache clusters")
+            success_count += 1
+        logger.info(f"Successfully fetched tags for {success_count} cache clusters")
         return results
 
     async def _fetch_tags(self, cache_cluster: dict[str, Any]) -> list[dict[str, Any]]:
