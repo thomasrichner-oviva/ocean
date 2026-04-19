@@ -1,7 +1,7 @@
 {
   "Type": "AWS::MSK::Cluster",
   "Properties": {
-    "ClusterArn": "arn:aws:kafka:eu-west-1:851725549828:cluster/demo-cluster-1/63b8f17d-cdca-42e4-847d-542ad2981d35-2",
+    "ClusterArn": "arn:aws:kafka:eu-west-1:123456789012:cluster/demo-cluster-1/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "ClusterName": "demo-cluster-1",
     "State": "ACTIVE",
     "CreationTime": "2026-04-19T14:51:13.196000+00:00",
@@ -9,13 +9,13 @@
     "BrokerNodeGroupInfo": {
       "BrokerAZDistribution": "DEFAULT",
       "ClientSubnets": [
-        "subnet-03d6440fff7cefac5",
-        "subnet-09a4a6e1e41a39525",
-        "subnet-02c0f0b331ec35c91"
+        "subnet-0123456789abcdef0",
+        "subnet-0123456789abcdef1",
+        "subnet-0123456789abcdef2"
       ],
       "InstanceType": "express.m7g.large",
       "SecurityGroups": [
-        "sg-0fb806907bf6a1601"
+        "sg-0123456789abcdef0"
       ],
       "ConnectivityInfo": {
         "PublicAccess": {
@@ -63,7 +63,7 @@
     },
     "EncryptionInfo": {
       "EncryptionAtRest": {
-        "DataVolumeKMSKeyId": "arn:aws:kms:eu-west-1:851725549828:key/9f0f349e-3d44-4599-b7c9-89ab2b786245"
+        "DataVolumeKMSKeyId": "arn:aws:kms:eu-west-1:123456789012:key/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
       },
       "EncryptionInTransit": {
         "ClientBroker": "TLS",
@@ -91,7 +91,7 @@
     }
   },
   "__ExtraContext": {
-    "AccountId": "851725549828",
+    "AccountId": "123456789012",
     "Region": "eu-west-1"
   }
 }

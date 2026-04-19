@@ -1,9 +1,9 @@
 {
-  "identifier": "arn:aws:kafka:eu-west-1:851725549828:cluster/demo-cluster-1/63b8f17d-cdca-42e4-847d-542ad2981d35-2",
+  "identifier": "arn:aws:kafka:eu-west-1:123456789012:cluster/demo-cluster-1/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "title": "demo-cluster-1",
   "blueprint": "mskCluster",
   "properties": {
-    "clusterArn": "arn:aws:kafka:eu-west-1:851725549828:cluster/demo-cluster-1/63b8f17d-cdca-42e4-847d-542ad2981d35-2",
+    "clusterArn": "arn:aws:kafka:eu-west-1:123456789012:cluster/demo-cluster-1/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "state": "ACTIVE",
     "kafkaVersion": "3.9.x.kraft",
     "numberOfBrokerNodes": 3,
@@ -34,6 +34,6 @@
     }
   },
   "relations": {
-    "account": "851725549828"
+    "account": "123456789012"
   }
 }
