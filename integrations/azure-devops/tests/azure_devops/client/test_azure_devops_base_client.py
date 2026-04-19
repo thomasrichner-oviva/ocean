@@ -2,7 +2,7 @@ import pytest
 from typing import Any
 from unittest.mock import AsyncMock, patch
 from httpx import Response, ReadTimeout
-from azure_devops.client.auth import PATAuthenticator
+from azure_devops.client.auth import PersonalAccessTokenAuthenticator
 from azure_devops.client.base_client import (
     HTTPBaseClient,
     CONTINUATION_TOKEN_HEADER,
@@ -13,7 +13,7 @@ from port_ocean.context.ocean import PortOceanContext
 
 @pytest.fixture
 def mock_client(mock_context: PortOceanContext) -> HTTPBaseClient:
-    return HTTPBaseClient(authenticator=PATAuthenticator("test_token"))
+    return HTTPBaseClient(authenticator=PersonalAccessTokenAuthenticator("test_token"))
 
 
 @pytest.mark.asyncio

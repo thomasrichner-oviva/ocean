@@ -6,7 +6,7 @@ from port_ocean.context.event import _event_context_stack, EventContext
 from port_ocean.context.ocean import ocean
 from port_ocean.utils.cache import hash_func
 
-from azure_devops.client.auth import PATAuthenticator
+from azure_devops.client.auth import PersonalAccessTokenAuthenticator
 from azure_devops.client.azure_devops_client import AzureDevopsClient
 from azure_devops.client.client_manager import AzureDevopsClientManager
 
@@ -105,10 +105,14 @@ CACHED_BACKING_METHODS = [
 @pytest.mark.parametrize("method_name", CACHED_BACKING_METHODS)
 def test_cached_backing_method_keys_differ_across_orgs(method_name: str) -> None:
     client_alpha = AzureDevopsClient(
-        "https://dev.azure.com/org-alpha", PATAuthenticator("pat-alpha"), "port"
+        "https://dev.azure.com/org-alpha",
+        PersonalAccessTokenAuthenticator("pat-alpha"),
+        "port",
     )
     client_beta = AzureDevopsClient(
-        "https://dev.azure.com/org-beta", PATAuthenticator("pat-beta"), "port"
+        "https://dev.azure.com/org-beta",
+        PersonalAccessTokenAuthenticator("pat-beta"),
+        "port",
     )
     func = getattr(client_alpha, method_name).__wrapped__
 
@@ -127,11 +131,13 @@ def test_cached_backing_method_key_stable_for_same_org() -> None:
     instance identity genuinely doesn't matter — only the org URL does).
     """
     client_one = AzureDevopsClient(
-        "https://dev.azure.com/only-org", PATAuthenticator("pat-one"), "port"
+        "https://dev.azure.com/only-org",
+        PersonalAccessTokenAuthenticator("pat-one"),
+        "port",
     )
     client_two = AzureDevopsClient(
         "https://dev.azure.com/only-org",
-        PATAuthenticator("pat-two-different-instance"),
+        PersonalAccessTokenAuthenticator("pat-two-different-instance"),
         "port",
     )
     func = client_one._generate_projects_cached.__wrapped__  # type: ignore[attr-defined]

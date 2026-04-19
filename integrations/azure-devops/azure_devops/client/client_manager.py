@@ -5,7 +5,7 @@ from port_ocean.context.ocean import ocean
 
 from azure_devops.client.auth import (
     Authenticator,
-    PATAuthenticator,
+    PersonalAccessTokenAuthenticator,
     ServicePrincipalAuthenticator,
 )
 from azure_devops.client.azure_devops_client import AzureDevopsClient
@@ -26,7 +26,7 @@ class AzureDevopsClientManager:
     Two supported modes:
 
     - **Single-org (PAT):** ``organizationUrl`` + ``personalAccessToken``.
-      One client, wrapped in a ``PATAuthenticator``.
+      One client, wrapped in a ``PersonalAccessTokenAuthenticator``.
     - **Multi-org (Service Principal):** ``organizationUrls`` +
       ``clientId`` + ``clientSecret`` + ``tenantId``. One
       ``ServicePrincipalAuthenticator`` is shared across every org client so the
@@ -113,7 +113,7 @@ class AzureDevopsClientManager:
             assert organization_url is not None
             assert personal_access_token is not None
             normalized = _normalize_org_url(organization_url)
-            authenticator = PATAuthenticator(personal_access_token)
+            authenticator = PersonalAccessTokenAuthenticator(personal_access_token)
             manager._authenticator = authenticator
             manager._clients[normalized] = AzureDevopsClient(
                 normalized, authenticator, webhook_auth_username

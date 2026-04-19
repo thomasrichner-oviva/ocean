@@ -1,7 +1,7 @@
 """Tests for :mod:`azure_devops.client.auth`.
 
 Covered behavior:
-- ``PATAuthenticator.apply`` sets ``httpx.BasicAuth("", pat)`` on the client.
+- ``PersonalAccessTokenAuthenticator.apply`` sets ``httpx.BasicAuth("", pat)`` on the client.
 - ``ServicePrincipalAuthenticator._fetch_token`` posts form-encoded
   client-credentials to the Entra ID token endpoint with the
   Azure DevOps resource scope.
@@ -23,15 +23,15 @@ from httpx import AsyncClient, BasicAuth
 from azure_devops.client.auth import (
     AZURE_DEVOPS_DEFAULT_SCOPE,
     EntraIdToken,
-    PATAuthenticator,
+    PersonalAccessTokenAuthenticator,
     ServicePrincipalAuthenticator,
 )
 
 
-class TestPATAuthenticator:
+class TestPersonalAccessTokenAuthenticator:
     @pytest.mark.asyncio
     async def test_apply_sets_basic_auth(self) -> None:
-        authenticator = PATAuthenticator("my-pat-value")
+        authenticator = PersonalAccessTokenAuthenticator("my-pat-value")
         client = AsyncClient()
         try:
             await authenticator.apply(client)

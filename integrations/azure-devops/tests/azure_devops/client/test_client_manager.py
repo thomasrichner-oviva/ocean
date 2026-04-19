@@ -6,7 +6,7 @@ from port_ocean.context.event import _event_context_stack, EventContext
 from port_ocean.context.ocean import ocean
 
 from azure_devops.client.auth import (
-    PATAuthenticator,
+    PersonalAccessTokenAuthenticator,
     ServicePrincipalAuthenticator,
 )
 from azure_devops.client.azure_devops_client import AzureDevopsClient
@@ -79,7 +79,7 @@ def test_legacy_single_org_builds_one_client(
     org_url, client = clients[0]
     assert org_url == "https://dev.azure.com/legacy-org"
     assert isinstance(client, AzureDevopsClient)
-    assert isinstance(client._authenticator, PATAuthenticator)
+    assert isinstance(client._authenticator, PersonalAccessTokenAuthenticator)
 
 
 def test_legacy_single_org_client_lookup(

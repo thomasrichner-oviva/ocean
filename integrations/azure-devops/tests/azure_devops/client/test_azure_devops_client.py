@@ -8,7 +8,7 @@ from port_ocean.context.event import EventContext, event_context
 from port_ocean.context.ocean import initialize_port_ocean_context
 from port_ocean.exceptions.context import PortOceanContextAlreadyInitializedError
 
-from azure_devops.client.auth import PATAuthenticator
+from azure_devops.client.auth import PersonalAccessTokenAuthenticator
 from azure_devops.client.azure_devops_client import AzureDevopsClient
 from azure_devops.client.file_processing import PathDescriptor
 from azure_devops.webhooks.webhook_event import WebhookSubscription
@@ -16,7 +16,7 @@ from azure_devops.misc import FolderPattern, RepositoryBranchMapping
 
 MOCK_ORG_URL = "https://your_organization_url.com"
 MOCK_PERSONAL_ACCESS_TOKEN = "personal_access_token"
-MOCK_AUTHENTICATOR = PATAuthenticator(MOCK_PERSONAL_ACCESS_TOKEN)
+MOCK_AUTHENTICATOR = PersonalAccessTokenAuthenticator(MOCK_PERSONAL_ACCESS_TOKEN)
 MOCK_PROJECT_ID = "12345"
 MOCK_PROJECT_NAME = "My Project"
 EXPECTED_PROJECT = {"name": MOCK_PROJECT_NAME, "id": MOCK_PROJECT_ID}
@@ -1375,7 +1375,9 @@ async def test_generate_releases_will_skip_404(
 def test_parse_wiql_with_order_by() -> None:
     """Test parsing WIQL into filter and ORDER BY parts."""
     client = AzureDevopsClient(
-        "https://fake_org_url.com", PATAuthenticator("fake_pat"), "fake_username"
+        "https://fake_org_url.com",
+        PersonalAccessTokenAuthenticator("fake_pat"),
+        "fake_username",
     )
 
     # No ORDER BY
@@ -1412,7 +1414,9 @@ async def test_generate_work_items_will_skip_404(mock_event_context: MagicMock) 
     or fetching work items), the client logs a warning and yields no items.
     """
     client = AzureDevopsClient(
-        "https://fake_org_url.com", PATAuthenticator("fake_pat"), "fake_username"
+        "https://fake_org_url.com",
+        PersonalAccessTokenAuthenticator("fake_pat"),
+        "fake_username",
     )
 
     async def mock_make_request(**kwargs: Any) -> Response:
@@ -1439,7 +1443,9 @@ async def test_generate_work_items_paginates_when_exceeding_20k_limit(
     )
 
     client = AzureDevopsClient(
-        "https://fake_org_url.com", PATAuthenticator("fake_pat"), "fake_username"
+        "https://fake_org_url.com",
+        PersonalAccessTokenAuthenticator("fake_pat"),
+        "fake_username",
     )
     test_project = {"id": "proj1", "name": "Test Project"}
 
@@ -1518,7 +1524,9 @@ async def test_generate_work_items_with_user_order_by_skips_pagination(
     Only one WIQL call is made (no ID-range pagination).
     """
     client = AzureDevopsClient(
-        "https://fake_org_url.com", PATAuthenticator("fake_pat"), "fake_username"
+        "https://fake_org_url.com",
+        PersonalAccessTokenAuthenticator("fake_pat"),
+        "fake_username",
     )
     test_project = {"id": "proj1", "name": "Test Project"}
 
@@ -2711,7 +2719,9 @@ async def test_generate_files_with_glob_patterns_integration() -> None:
     }
 
     # Create a real client instance but mock its dependencies
-    client = AzureDevopsClient("https://dev.azure.com/test", PATAuthenticator("token"))
+    client = AzureDevopsClient(
+        "https://dev.azure.com/test", PersonalAccessTokenAuthenticator("token")
+    )
 
     # Mock: yield one repository
     async def mock_generate_repositories(
@@ -2780,7 +2790,9 @@ async def test_generate_files_with_mixed_literal_and_glob_patterns() -> None:
     }
 
     # Create a real client instance but mock its dependencies
-    client = AzureDevopsClient("https://dev.azure.com/test", PATAuthenticator("token"))
+    client = AzureDevopsClient(
+        "https://dev.azure.com/test", PersonalAccessTokenAuthenticator("token")
+    )
 
     # Mock: yield one repository
     async def mock_generate_repositories(
@@ -2943,7 +2955,9 @@ async def test_generate_files_with_multiple_glob_patterns_different_recursion() 
     }
 
     # Create a real client instance but mock its dependencies
-    client = AzureDevopsClient("https://dev.azure.com/test", PATAuthenticator("token"))
+    client = AzureDevopsClient(
+        "https://dev.azure.com/test", PersonalAccessTokenAuthenticator("token")
+    )
 
     # Mock: yield one repository
     async def mock_generate_repositories(
@@ -3075,7 +3089,9 @@ async def test_generate_files_with_no_matching_files() -> None:
     }
 
     # Create a real client instance but mock its dependencies
-    client = AzureDevopsClient("https://dev.azure.com/test", PATAuthenticator("token"))
+    client = AzureDevopsClient(
+        "https://dev.azure.com/test", PersonalAccessTokenAuthenticator("token")
+    )
 
     # Mock: yield one repository
     async def mock_generate_repositories(
@@ -3131,7 +3147,9 @@ async def test_generate_files_with_folders_mixed_in() -> None:
     }
 
     # Create a real client instance but mock its dependencies
-    client = AzureDevopsClient("https://dev.azure.com/test", PATAuthenticator("token"))
+    client = AzureDevopsClient(
+        "https://dev.azure.com/test", PersonalAccessTokenAuthenticator("token")
+    )
 
     # Mock: yield one repository
     async def mock_generate_repositories(
@@ -4379,7 +4397,9 @@ async def test_get_repository_files_skips_none_downloads() -> None:
         "project": {"id": "project1-id"},
     }
 
-    client = AzureDevopsClient("https://dev.azure.com/test", PATAuthenticator("token"))
+    client = AzureDevopsClient(
+        "https://dev.azure.com/test", PersonalAccessTokenAuthenticator("token")
+    )
 
     async def mock_generate_repositories(
         include_disabled_repositories: bool = True,
@@ -4426,7 +4446,9 @@ async def test_get_repository_files_mixed_none_and_valid_downloads() -> None:
         "project": {"id": "project1-id"},
     }
 
-    client = AzureDevopsClient("https://dev.azure.com/test", PATAuthenticator("token"))
+    client = AzureDevopsClient(
+        "https://dev.azure.com/test", PersonalAccessTokenAuthenticator("token")
+    )
 
     async def mock_generate_repositories(
         include_disabled_repositories: bool = True,

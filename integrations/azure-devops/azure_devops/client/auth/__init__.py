@@ -1,5 +1,5 @@
 from azure_devops.client.auth.base import Authenticator
-from azure_devops.client.auth.pat import PATAuthenticator
+from azure_devops.client.auth.pat import PersonalAccessTokenAuthenticator
 from azure_devops.client.auth.service_principal import (
     AZURE_DEVOPS_DEFAULT_SCOPE,
     AZURE_DEVOPS_RESOURCE_ID,
@@ -9,7 +9,7 @@ from azure_devops.client.auth.service_principal import (
 
 __all__ = [
     "Authenticator",
-    "PATAuthenticator",
+    "PersonalAccessTokenAuthenticator",
     "ServicePrincipalAuthenticator",
     "EntraIdToken",
     "AZURE_DEVOPS_RESOURCE_ID",

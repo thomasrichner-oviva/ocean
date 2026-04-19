@@ -47,3 +47,34 @@ def test_extract_org_name_from_visualstudio_com_url() -> None:
 
 def test_extract_org_name_from_visualstudio_com_url_with_trailing_slash() -> None:
     assert extract_org_name_from_url("https://myorg.visualstudio.com/") == "myorg"
+
+
+def test_extract_org_name_from_visualstudio_com_url_with_project_path() -> None:
+    # Legacy hosts must use the subdomain even when a path segment is present.
+    assert (
+        extract_org_name_from_url("https://myorg.visualstudio.com/SomeProject")
+        == "myorg"
+    )
+
+
+def test_extract_org_name_from_visualstudio_com_url_with_collection_path() -> None:
+    assert (
+        extract_org_name_from_url(
+            "https://myorg.visualstudio.com/DefaultCollection/Project"
+        )
+        == "myorg"
+    )
+
+
+def test_extract_org_name_from_visualstudio_com_url_is_case_insensitive_host() -> None:
+    # Host match is case-insensitive; subdomain casing is preserved.
+    assert (
+        extract_org_name_from_url("https://MyOrg.VisualStudio.com/Project") == "MyOrg"
+    )
+
+
+def test_extract_org_name_from_dev_azure_com_url_with_deep_path() -> None:
+    assert (
+        extract_org_name_from_url("https://dev.azure.com/myorg/project/_git/repo")
+        == "myorg"
+    )

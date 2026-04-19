@@ -20,7 +20,7 @@ import pytest
 
 from port_ocean.context.ocean import ocean
 
-from azure_devops.client.auth import PATAuthenticator
+from azure_devops.client.auth import PersonalAccessTokenAuthenticator
 from azure_devops.client.azure_devops_client import AzureDevopsClient
 from azure_devops.client.client_manager import AzureDevopsClientManager
 from azure_devops.webhooks.setup import setup_webhooks_for_all_orgs
@@ -49,7 +49,7 @@ def non_once_event_listener(
 def _make_client(org_url: str) -> AzureDevopsClient:
     """Build a real AzureDevopsClient instance bound to ``org_url``
     with its ``create_webhook_subscriptions`` method mocked out."""
-    client = AzureDevopsClient(org_url, PATAuthenticator("pat"), "port")
+    client = AzureDevopsClient(org_url, PersonalAccessTokenAuthenticator("pat"), "port")
     client.create_webhook_subscriptions = AsyncMock()  # type: ignore[method-assign]
     return client
 
