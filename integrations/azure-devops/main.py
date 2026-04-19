@@ -40,6 +40,12 @@ from azure_devops.webhooks.webhook_processors.pipeline_stage_webhook_processor i
 from azure_devops.webhooks.webhook_processors.pipeline_webhook_processor import (
     PipelineWebhookProcessor,
 )
+from azure_devops.webhooks.webhook_processors.release_webhook_processor import (
+    ReleaseWebhookProcessor,
+)
+from azure_devops.webhooks.webhook_processors.release_deployment_webhook_processor import (
+    ReleaseDeploymentWebhookProcessor,
+)
 from integration import (
     AzureDevopsAdvancedSecurityResourceConfig,
     AzureDevopsFileResourceConfig,
@@ -272,3 +278,5 @@ ocean.add_webhook_processor("/webhook", AdvancedSecurityWebhookProcessor)
 ocean.add_webhook_processor("/webhook", PipelineWebhookProcessor)
 ocean.add_webhook_processor("/webhook", PipelineStageWebhookProcessor)
 ocean.add_webhook_processor("/webhook", PipelineRunWebhookProcessor)
+ocean.add_webhook_processor("/webhook", ReleaseWebhookProcessor)
+ocean.add_webhook_processor("/webhook", ReleaseDeploymentWebhookProcessor)

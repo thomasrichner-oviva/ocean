@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- towncrier release notes start -->
 
-## 0.9.0 (2026-04-13)
+## 0.9.0 (2026-04-20)
 
 
 ### Features
@@ -15,6 +15,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added multi-organization support
 - Added a new optional `organizationTokenMapping` config field that accepts a JSON string mapping organization URLs to their Personal Access Tokens.
 - Enriched every synced entity with `__organizationUrl` and `__organizationName` enrichment fields so custom JQ mappings can scope identifiers per organization.
+
+
+## 0.8.16 (2026-04-16)
+
+
+### Features
+
+- Added live event support for releases and release deployments via ADO service hooks (release created, abandoned, deployment started, deployment completed)
+
+
+## 0.8.15 (2026-04-16)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.7
+
+
+## 0.8.14 (2026-04-15)
+
+
+### Improvements
+
+- Bumped ocean version to ^0.40.6
 
 
 ## 0.8.13 (2026-04-15)
