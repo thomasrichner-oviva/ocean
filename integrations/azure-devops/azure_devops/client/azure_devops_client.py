@@ -642,6 +642,7 @@ class AzureDevopsClient(HTTPBaseClient):
                             env["__release"] = {
                                 "id": release["id"],
                                 "name": release["name"],
+                                "releaseDefinition": release["releaseDefinition"],
                             }
                             env["__project"] = project
                             environments.append(env)
