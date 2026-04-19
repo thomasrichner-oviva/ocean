@@ -268,17 +268,16 @@ def get_file_validation_mappings(
     for resource in port_app_config.resources:
         # Check if this is a file resource by checking the kind attribute
         if hasattr(resource, "kind") and resource.kind == "file":
-            file_resource_config = resource
-            selector = file_resource_config.selector
-
             matching_patterns = [
-                pattern for pattern in selector.files if pattern.validation_check
+                pattern
+                for pattern in resource.selector.files
+                if pattern.validation_check
             ]
 
             if matching_patterns:
                 matching_mappings.append(
                     ResourceConfigToPatternMapping(
-                        resource_config=file_resource_config, patterns=matching_patterns
+                        resource_config=resource, patterns=matching_patterns
                     )
                 )
 
