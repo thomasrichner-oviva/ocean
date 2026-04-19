@@ -4687,236 +4687,93 @@ async def test_generate_repository_policies_multiple_repos(
                 assert policy["__repository"]["id"] == repo_id
 
 
-EXPECTED_RELEASE_DEFINITIONS = [
-    {
-        "id": 1,
-        "name": "MyShuttle.CD",
-        "source": "userInterface",
-        "revision": 3,
-        "description": "Sample release definition",
-        "createdOn": "2017-05-31T00:00:00Z",
-        "modifiedOn": "2017-06-01T00:00:00Z",
-        "createdBy": {"uniqueName": "user@example.com"},
-        "modifiedBy": {"uniqueName": "user@example.com"},
-        "path": "\\",
-        "releaseNameFormat": "Release-$(rev:r)",
-        "environments": [
-            {"id": 1, "name": "Dev", "rank": 1},
-            {"id": 2, "name": "QA", "rank": 2},
-        ],
-        "_links": {"web": {"href": "https://vsrm.dev.azure.com/org/proj/_release?definitionId=1"}},
-    }
-]
+@pytest.mark.asyncio
+async def test_get_release() -> None:
+    client = AzureDevopsClient(
+        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
+    )
+    expected_release = {"id": 42, "name": "Release-42", "status": "active"}
 
-MOCK_RELEASES_WITH_ENVIRONMENTS = [
-    {
-        "id": 18,
-        "name": "Release-18",
-        "status": "active",
-        "releaseDefinition": {"id": 1, "name": "MyShuttle.CD"},
-        "environments": [
-            {
-                "id": 101,
-                "name": "Dev",
-                "status": "succeeded",
-                "rank": 1,
-                "triggerReason": "Manual",
-                "createdOn": "2023-01-01T10:00:00Z",
-                "modifiedOn": "2023-01-01T10:05:00Z",
-                "timeToDeploy": 5.0,
-                "deploySteps": [{"attempt": 1, "status": "succeeded", "reason": "manual"}],
-                "conditions": [{"name": "Dev", "conditionType": "event", "result": True}],
+    with patch.object(client, "send_request") as mock_send_request:
+        mock_send_request.return_value = Response(
+            status_code=200, json=expected_release
+        )
+
+        result = await client.get_release("project-123", 42)
+
+        assert result == expected_release
+        mock_send_request.assert_called_once_with(
+            "GET",
+            "https://your_organization_url.com/project-123/_apis/release/releases/42",
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_release_not_found() -> None:
+    client = AzureDevopsClient(
+        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
+    )
+
+    with patch.object(client, "send_request") as mock_send_request:
+        mock_send_request.return_value = None
+
+        result = await client.get_release("project-123", 42)
+
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_release_deployment() -> None:
+    client = AzureDevopsClient(
+        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
+    )
+    expected_deployment = {"id": 99, "deploymentStatus": "succeeded"}
+
+    with patch.object(client, "send_request") as mock_send_request:
+        mock_send_request.return_value = Response(
+            status_code=200, json={"count": 1, "value": [expected_deployment]}
+        )
+
+        result = await client.get_release_deployment("project-123", 10, 5)
+
+        assert result == expected_deployment
+        mock_send_request.assert_called_once_with(
+            "GET",
+            "https://your_organization_url.com/project-123/_apis/release/deployments",
+            params={
+                "deploymentStatus": "all",
+                "releaseId": 10,
+                "definitionEnvironmentId": 5,
+                "$top": 1,
             },
-            {
-                "id": 102,
-                "name": "QA",
-                "status": "notStarted",
-                "rank": 2,
-                "triggerReason": "After successful deployment of Dev",
-                "createdOn": "2023-01-01T10:00:00Z",
-                "modifiedOn": "2023-01-01T10:00:00Z",
-                "timeToDeploy": 0,
-                "deploySteps": [],
-                "conditions": [{"name": "QA", "conditionType": "environmentState", "result": False}],
-            },
-        ],
-    }
-]
+        )
 
 
 @pytest.mark.asyncio
-async def test_generate_release_definitions(mock_event_context: MagicMock) -> None:
+async def test_get_release_deployment_not_found() -> None:
     client = AzureDevopsClient(
         MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
     )
 
-    mock_project = {"id": "proj1", "name": "Project One"}
+    with patch.object(client, "send_request") as mock_send_request:
+        mock_send_request.return_value = Response(
+            status_code=200, json={"count": 0, "value": []}
+        )
 
-    async def mock_generate_projects() -> AsyncGenerator[List[Dict[str, Any]], None]:
-        yield [mock_project]
+        result = await client.get_release_deployment("project-123", 10, 5)
 
-    async def mock_get_paginated_by_top_and_continuation_token(
-        url: str, **kwargs: Any
-    ) -> AsyncGenerator[List[Dict[str, Any]], None]:
-        if "definitions" in url:
-            yield EXPECTED_RELEASE_DEFINITIONS
-        else:
-            yield []
-
-    async with event_context("test_event"):
-        with patch.object(
-            client, "generate_projects", side_effect=mock_generate_projects
-        ):
-            with patch.object(
-                client,
-                "_get_paginated_by_top_and_continuation_token",
-                side_effect=mock_get_paginated_by_top_and_continuation_token,
-            ):
-                definitions: List[Dict[str, Any]] = []
-                async for batch in client.generate_release_definitions():
-                    definitions.extend(batch)
-
-                assert len(definitions) == 1
-                assert definitions[0]["id"] == 1
-                assert definitions[0]["name"] == "MyShuttle.CD"
-                assert definitions[0]["__project"] == mock_project
-                assert len(definitions[0]["environments"]) == 2
+        assert result is None
 
 
 @pytest.mark.asyncio
-async def test_generate_release_definitions_will_skip_404(
-    mock_event_context: MagicMock,
-) -> None:
+async def test_get_release_deployment_404() -> None:
     client = AzureDevopsClient(
         MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
     )
 
-    async def mock_generate_projects() -> AsyncGenerator[List[Dict[str, Any]], None]:
-        yield [{"id": "proj1", "name": "Project One"}]
+    with patch.object(client, "send_request") as mock_send_request:
+        mock_send_request.return_value = None
 
-    async def mock_make_request(**kwargs: Any) -> Response:
-        return Response(status_code=404, request=Request("GET", "https://google.com"))
+        result = await client.get_release_deployment("project-123", 10, 5)
 
-    async with event_context("test_event"):
-        with (
-            patch.object(
-                client, "generate_projects", side_effect=mock_generate_projects
-            ),
-            patch.object(client._client, "request", side_effect=mock_make_request),
-        ):
-            definitions: List[Dict[str, Any]] = []
-            async for batch in client.generate_release_definitions():
-                definitions.extend(batch)
-
-            assert not definitions
-
-
-@pytest.mark.asyncio
-async def test_generate_release_environments(mock_event_context: MagicMock) -> None:
-    client = AzureDevopsClient(
-        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
-    )
-
-    mock_project = {"id": "proj1", "name": "Project One"}
-
-    async def mock_generate_projects() -> AsyncGenerator[List[Dict[str, Any]], None]:
-        yield [mock_project]
-
-    async def mock_get_paginated_by_top_and_continuation_token(
-        url: str, **kwargs: Any
-    ) -> AsyncGenerator[List[Dict[str, Any]], None]:
-        if "releases" in url:
-            yield MOCK_RELEASES_WITH_ENVIRONMENTS
-        else:
-            yield []
-
-    async with event_context("test_event"):
-        with patch.object(
-            client, "generate_projects", side_effect=mock_generate_projects
-        ):
-            with patch.object(
-                client,
-                "_get_paginated_by_top_and_continuation_token",
-                side_effect=mock_get_paginated_by_top_and_continuation_token,
-            ):
-                environments: List[Dict[str, Any]] = []
-                async for batch in client.generate_release_environments():
-                    environments.extend(batch)
-
-                assert len(environments) == 2
-                assert environments[0]["name"] == "Dev"
-                assert environments[0]["status"] == "succeeded"
-                assert environments[0]["__project"] == mock_project
-                assert environments[0]["__release"]["id"] == 18
-                assert environments[0]["__release"]["name"] == "Release-18"
-                assert environments[1]["name"] == "QA"
-                assert environments[1]["status"] == "notStarted"
-                assert environments[1]["__release"]["id"] == 18
-
-
-@pytest.mark.asyncio
-async def test_generate_release_environments_will_skip_404(
-    mock_event_context: MagicMock,
-) -> None:
-    client = AzureDevopsClient(
-        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
-    )
-
-    async def mock_generate_projects() -> AsyncGenerator[List[Dict[str, Any]], None]:
-        yield [{"id": "proj1", "name": "Project One"}]
-
-    async def mock_make_request(**kwargs: Any) -> Response:
-        return Response(status_code=404, request=Request("GET", "https://google.com"))
-
-    async with event_context("test_event"):
-        with (
-            patch.object(
-                client, "generate_projects", side_effect=mock_generate_projects
-            ),
-            patch.object(client._client, "request", side_effect=mock_make_request),
-        ):
-            environments: List[Dict[str, Any]] = []
-            async for batch in client.generate_release_environments():
-                environments.extend(batch)
-
-            assert not environments
-
-
-@pytest.mark.asyncio
-async def test_generate_release_environments_skips_releases_without_environments(
-    mock_event_context: MagicMock,
-) -> None:
-    client = AzureDevopsClient(
-        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
-    )
-
-    async def mock_generate_projects() -> AsyncGenerator[List[Dict[str, Any]], None]:
-        yield [{"id": "proj1", "name": "Project One"}]
-
-    releases_without_envs = [
-        {"id": 1, "name": "Release-1", "environments": []},
-        {"id": 2, "name": "Release-2"},
-    ]
-
-    async def mock_get_paginated_by_top_and_continuation_token(
-        url: str, **kwargs: Any
-    ) -> AsyncGenerator[List[Dict[str, Any]], None]:
-        if "releases" in url:
-            yield releases_without_envs
-        else:
-            yield []
-
-    async with event_context("test_event"):
-        with patch.object(
-            client, "generate_projects", side_effect=mock_generate_projects
-        ):
-            with patch.object(
-                client,
-                "_get_paginated_by_top_and_continuation_token",
-                side_effect=mock_get_paginated_by_top_and_continuation_token,
-            ):
-                environments: List[Dict[str, Any]] = []
-                async for batch in client.generate_release_environments():
-                    environments.extend(batch)
-
-                assert not environments
+        assert result is None
