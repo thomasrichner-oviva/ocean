@@ -30,7 +30,7 @@ class MskClusterExporter(IResourceExporter):
                 proxy.client, self._actions_map(), lambda: self._model_cls()
             )
             response = await inspector.inspect(
-                [{"ClusterArn": options.cluster_arn}], options.include
+                [options.cluster_arn], options.include
             )
 
             return response[0] if response else {}
@@ -50,8 +50,9 @@ class MskClusterExporter(IResourceExporter):
 
             async for clusters in paginator.paginate():
                 if clusters:
+                    cluster_arns = [c["ClusterArn"] for c in clusters]
                     action_result = await inspector.inspect(
-                        clusters,
+                        cluster_arns,
                         options.include,
                         extra_context={
                             "AccountId": options.account_id,

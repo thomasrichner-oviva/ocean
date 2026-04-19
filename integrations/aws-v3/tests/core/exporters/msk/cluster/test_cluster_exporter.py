@@ -69,11 +69,7 @@ class TestMskClusterExporter:
         mock_proxy_class.assert_called_once_with(exporter.session, "us-west-2", "kafka")
         mock_inspector_class.assert_called_once()
         mock_inspector.inspect.assert_called_once_with(
-            [
-                {
-                    "ClusterArn": "arn:aws:kafka:us-west-2:123456789012:cluster/test-cluster/abc123"
-                }
-            ],
+            ["arn:aws:kafka:us-west-2:123456789012:cluster/test-cluster/abc123"],
             [],
         )
 
