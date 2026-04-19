@@ -75,6 +75,19 @@ class TestDescribeClusterAction:
 
         assert len(result) == 0
 
+    @pytest.mark.asyncio
+    async def test_execute_with_non_recoverable_exception(
+        self, action: DescribeClusterAction
+    ) -> None:
+        cluster_arns = [
+            "arn:aws:kafka:us-west-2:123456789012:cluster/failing-cluster/fail123",
+        ]
+
+        action.client.describe_cluster.side_effect = RuntimeError("Unexpected error")
+
+        with pytest.raises(RuntimeError, match="Unexpected error"):
+            await action.execute(cluster_arns)
+
 
 class TestMskClusterActionsMap:
 
