@@ -194,6 +194,39 @@ class TestBoardWebhookProcessorValidatePayload:
     async def test_empty_payload(self, board_processor: BoardWebhookProcessor) -> None:
         assert await board_processor.validate_payload({}) is False
 
+    @pytest.mark.asyncio
+    async def test_validate_payload_board_is_none(
+        self, board_processor: BoardWebhookProcessor
+    ) -> None:
+        assert (
+            await board_processor.validate_payload(
+                {"webhookEvent": "board_created", "board": None}
+            )
+            is False
+        )
+
+    @pytest.mark.asyncio
+    async def test_validate_payload_board_is_not_a_dict(
+        self, board_processor: BoardWebhookProcessor
+    ) -> None:
+        assert (
+            await board_processor.validate_payload(
+                {"webhookEvent": "board_created", "board": "invalid"}
+            )
+            is False
+        )
+
+    @pytest.mark.asyncio
+    async def test_validate_payload_board_id_is_none(
+        self, board_processor: BoardWebhookProcessor
+    ) -> None:
+        assert (
+            await board_processor.validate_payload(
+                {"webhookEvent": "board_created", "board": {"id": None}}
+            )
+            is False
+        )
+
 
 class TestBoardWebhookProcessorHandleEvent:
     @pytest.mark.asyncio

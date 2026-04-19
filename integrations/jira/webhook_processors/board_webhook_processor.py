@@ -25,7 +25,11 @@ class BoardWebhookProcessor(AbstractWebhookProcessor):
         return True
 
     async def validate_payload(self, payload: EventPayload) -> bool:
-        return "board" in payload and "id" in payload.get("board", {})
+        board = payload.get("board")
+        if not isinstance(board, dict):
+            logger.warning("Invalid payload: missing board information")
+            return False
+        return board.get("id") is not None
 
     async def handle_event(
         self, payload: EventPayload, resource_config: ResourceConfig

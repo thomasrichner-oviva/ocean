@@ -1101,3 +1101,69 @@ async def test_get_cloud_id_raises_when_accessible_resources_returns_empty_list(
 
         with pytest.raises(ValueError, match="Could not resolve cloud ID"):
             await mock_jira_client._get_cloud_id()
+
+
+@pytest.mark.asyncio
+async def test_get_cloud_id_extracts_from_gateway_url_without_api_call(
+    mock_jira_client: JiraClient,
+) -> None:
+    """When jira_url is already in gateway format, cloud ID must be extracted
+    directly without making an accessible-resources API call."""
+    mock_jira_client.jira_url = (
+        "https://api.atlassian.com/ex/jira/33f08530-afd8-42fd-82cc-1dd5ebfeece8"
+    )
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        cloud_id = await mock_jira_client._get_cloud_id()
+
+    assert cloud_id == "33f08530-afd8-42fd-82cc-1dd5ebfeece8"
+    mock_request.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_cloud_id_extracts_from_gateway_url_with_trailing_slash(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Trailing slash on gateway jira_url must not break cloud ID extraction."""
+    mock_jira_client.jira_url = (
+        "https://api.atlassian.com/ex/jira/33f08530-afd8-42fd-82cc-1dd5ebfeece8/"
+    )
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        cloud_id = await mock_jira_client._get_cloud_id()
+
+    assert cloud_id == "33f08530-afd8-42fd-82cc-1dd5ebfeece8"
+    mock_request.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_cloud_id_falls_back_to_accessible_resources_for_non_gateway_url(
+    mock_jira_client: JiraClient,
+) -> None:
+    """When jira_url is a direct site URL, cloud ID must be resolved
+    via the accessible-resources endpoint."""
+    mock_resources = [
+        {
+            "id": "33f08530-afd8-42fd-82cc-1dd5ebfeece8",
+            "url": "https://example.atlassian.net",
+            "name": "example",
+            "scopes": [],
+            "avatarUrl": "",
+        }
+    ]
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_resources
+        cloud_id = await mock_jira_client._get_cloud_id()
+
+    assert cloud_id == "33f08530-afd8-42fd-82cc-1dd5ebfeece8"
+    mock_request.assert_called_once_with(
+        "GET",
+        "https://api.atlassian.com/oauth/token/accessible-resources",
+    )

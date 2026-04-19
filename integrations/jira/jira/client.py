@@ -3,6 +3,7 @@ import uuid
 from typing import Any, AsyncGenerator, Generator
 
 import httpx
+import re
 from httpx import Auth, BasicAuth, Request, Response, Timeout
 from loguru import logger
 
@@ -51,6 +52,9 @@ OAUTH2_WEBHOOK_EVENTS = [
     "jira:version_released",
     "jira:version_unreleased",
     "jira:version_moved",
+    "board_created",
+    "board_updated",
+    "board_deleted",
 ]
 
 
@@ -132,10 +136,20 @@ class JiraClient(OAuthClient):
 
     async def _get_cloud_id(self) -> str:
         """
-        Resolve the Atlassian cloud ID for the configured Jira site.
+        Resolve the Atlassian cloud ID for the configured Jira site from jira_url when OAuth gateway format is used,
+        otherwise resolve via accessible-resources endpoint.
 
         See: https://developer.atlassian.com/cloud/oauth/getting-started/making-calls-to-api/#cloud-id
         """
+        _ATLASSIAN_GATEWAY_PATTERN = re.compile(
+            r"https://api\.atlassian\.com/ex/jira/([^/]+)"
+        )
+        pattern_match = _ATLASSIAN_GATEWAY_PATTERN.match(self.jira_url.rstrip("/"))
+        if pattern_match:
+            cloud_id = pattern_match.group(1)
+            logger.debug(f"Extracted cloud ID {cloud_id} from jira_url")
+            return cloud_id
+
         resources = await self._send_api_request(
             "GET",
             "https://api.atlassian.com/oauth/token/accessible-resources",
@@ -143,9 +157,9 @@ class JiraClient(OAuthClient):
         normalized_jira_url = self.jira_url.rstrip("/")
         for resource in resources:
             if resource.get("url", "").rstrip("/") == normalized_jira_url:
-                cloud_id: str = resource["id"]
-                logger.debug(f"Resolved cloud ID {cloud_id} for {self.jira_url}")
-                return cloud_id
+                resolved_id: str = resource["id"]
+                logger.debug(f"Resolved cloud ID {resolved_id} for {self.jira_url}")
+                return resolved_id
 
         raise ValueError(
             f"Could not resolve cloud ID for Jira site '{self.jira_url}'. "
@@ -602,7 +616,8 @@ class JiraClient(OAuthClient):
         self, params: dict[str, Any] | None = None
     ) -> AsyncGenerator[list[dict[str, Any]], None]:
         logger.info("Fetching boards from Jira")
-        endpoint = f"{self._agile_api_url}/board"
+        resource_base_url = await self._get_agile_api_url()
+        endpoint = f"{resource_base_url}/board"
 
         async for board_batch in self._get_agile_paginated_data(
             endpoint, initial_params=params
@@ -613,6 +628,7 @@ class JiraClient(OAuthClient):
     async def get_single_board(self, board_id: int) -> dict[str, Any]:
         """Used by webhook processors to re-fetch board state after board_created or board_updated events."""
         logger.debug(f"Fetching single board: {board_id}")
+        resource_base_url = await self._get_agile_api_url()
         return await self._send_api_request(
-            "GET", f"{self.agile_api_url}/board/{board_id}"
+            "GET", f"{resource_base_url}/board/{board_id}"
         )

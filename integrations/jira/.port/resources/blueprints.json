@@ -225,10 +225,10 @@
     "schema": {
       "properties": {
         "url": {
-          "title": "Board URL",
+          "title": "Board API URL",
           "type": "string",
           "format": "url",
-          "description": "Direct URL to the board in Jira"
+          "description": "REST API URL to the board in Jira"
         },
         "type": {
           "title": "Board Type",
