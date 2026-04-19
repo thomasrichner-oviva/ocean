@@ -14,8 +14,9 @@ class ObjectKind(StrEnum):
     ECS_SERVICE = "AWS::ECS::Service"
     SQS_QUEUE = "AWS::SQS::Queue"
     ECR_REPOSITORY = "AWS::ECR::Repository"
+    MSK_CLUSTER = "AWS::MSK::Cluster"
 
 
 SupportedServices = Literal[
-    "s3", "ecs", "ec2", "sqs", "organizations", "eks", "rds", "lambda", "ecr"
+    "s3", "ecs", "ec2", "sqs", "organizations", "eks", "rds", "lambda", "ecr", "kafka"
 ]

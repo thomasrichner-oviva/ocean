@@ -1,0 +1,39 @@
+{
+  "identifier": "arn:aws:kafka:eu-west-1:851725549828:cluster/demo-cluster-1/63b8f17d-cdca-42e4-847d-542ad2981d35-2",
+  "title": "demo-cluster-1",
+  "blueprint": "mskCluster",
+  "properties": {
+    "clusterArn": "arn:aws:kafka:eu-west-1:851725549828:cluster/demo-cluster-1/63b8f17d-cdca-42e4-847d-542ad2981d35-2",
+    "state": "ACTIVE",
+    "kafkaVersion": "3.9.x.kraft",
+    "numberOfBrokerNodes": 3,
+    "instanceType": "express.m7g.large",
+    "enhancedMonitoring": "DEFAULT",
+    "clientAuthentication": {
+      "Sasl": {
+        "Scram": {
+          "Enabled": false
+        },
+        "Iam": {
+          "Enabled": true
+        }
+      },
+      "Tls": {
+        "CertificateAuthorityArnList": [],
+        "Enabled": false
+      },
+      "Unauthenticated": {
+        "Enabled": false
+      }
+    },
+    "encryptionInTransit": "TLS",
+    "creationTime": "2026-04-19T14:51:13.196000+00:00",
+    "tags": {
+      "Environment": "demo",
+      "Team": "platform"
+    }
+  },
+  "relations": {
+    "account": "851725549828"
+  }
+}
