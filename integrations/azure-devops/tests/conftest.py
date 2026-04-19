@@ -17,7 +17,10 @@ from port_ocean.exceptions.context import PortOceanContextAlreadyInitializedErro
 TEST_INTEGRATION_CONFIG: Dict[str, Any] = {
     "organization_url": "https://dev.azure.com/test-org",
     "personal_access_token": "test-pat",
-    "organization_token_mapping": None,
+    "organization_urls": None,
+    "client_id": None,
+    "client_secret": None,
+    "tenant_id": None,
     "webhook_secret": "test-secret",
     "webhook_auth_username": "port",
     "is_projects_limited": False,

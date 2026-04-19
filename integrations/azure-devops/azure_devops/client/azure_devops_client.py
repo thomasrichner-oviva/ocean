@@ -8,8 +8,6 @@ from itertools import batched
 from typing import Any, AsyncGenerator, Awaitable, Optional, Callable, Iterable
 from httpx import HTTPStatusError, ReadTimeout
 from loguru import logger
-from port_ocean.context.event import event
-from port_ocean.context.ocean import ocean
 from port_ocean.utils.cache import cache_iterator_result
 
 from azure_devops.webhooks.webhook_event import WebhookSubscription
@@ -50,6 +48,7 @@ import fnmatch
 
 if TYPE_CHECKING:
     from integration import CodeCoverageConfig
+    from azure_devops.client.auth import Authenticator
 
 API_URL_PREFIX = "_apis"
 WEBHOOK_API_PARAMS = {"api-version": "7.1-preview.1"}
@@ -146,45 +145,13 @@ class AzureDevopsClient(HTTPBaseClient):
     def __init__(
         self,
         organization_url: str,
-        personal_access_token: str,
+        authenticator: "Authenticator",
         webhook_auth_username: Optional[str] = None,
     ) -> None:
-        super().__init__(personal_access_token)
+        super().__init__(authenticator)
         self._organization_base_url = organization_url
         self._advsec_base_url = f"{organization_url.replace('dev.', f'{ADVANCED_SECURITY_PUBLISHER_ID}.dev.')}"
         self.webhook_auth_username = webhook_auth_username
-
-    @classmethod
-    def create_from_ocean_config(cls) -> "AzureDevopsClient":
-        if cache := event.attributes.get("azure_devops_client"):
-            return cache
-        azure_devops_client = cls(
-            ocean.integration_config["organization_url"].strip("/"),
-            ocean.integration_config["personal_access_token"],
-            ocean.integration_config["webhook_auth_username"],
-        )
-        event.attributes["azure_devops_client"] = azure_devops_client
-        return azure_devops_client
-
-    @classmethod
-    def create_from_ocean_config_no_cache(cls) -> "AzureDevopsClient":
-        azure_devops_client = cls(
-            ocean.integration_config["organization_url"].strip("/"),
-            ocean.integration_config["personal_access_token"],
-            ocean.integration_config["webhook_auth_username"],
-        )
-        return azure_devops_client
-
-    @classmethod
-    def create_for_org(cls, org_url: str) -> "AzureDevopsClient":
-        """Look up the client for a specific organization URL"""
-        from azure_devops.client.client_manager import AzureDevopsClientManager
-
-        manager = AzureDevopsClientManager.create_from_ocean_config()
-        client = manager.get_client_for_org(org_url)
-        if client is None:
-            raise ValueError(f"No client configured for organization: {org_url}")
-        return client
 
     @classmethod
     def _repository_is_healthy(cls, repository: dict[str, Any]) -> bool:

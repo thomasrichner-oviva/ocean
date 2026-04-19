@@ -1,9 +1,13 @@
-import json
 from typing import Optional
 
 from port_ocean.context.event import event
 from port_ocean.context.ocean import ocean
 
+from azure_devops.client.auth import (
+    Authenticator,
+    PATAuthenticator,
+    ServicePrincipalAuthenticator,
+)
 from azure_devops.client.azure_devops_client import AzureDevopsClient
 from azure_devops.helpers.validate_config import validate_azure_devops_config
 
@@ -19,14 +23,19 @@ def _normalize_org_url(org_url: str) -> str:
 class AzureDevopsClientManager:
     """Holds one AzureDevopsClient per configured organization.
 
-    In single-org mode the manager wraps the legacy
-    organizationUrl/personalAccessToken pair in a one-entry dict. In
-    multi-org mode it parses the organizationTokenMapping JSON string
-    and creates one client per (org_url, pat) entry.
+    Two supported modes:
+
+    - **Single-org (PAT):** ``organizationUrl`` + ``personalAccessToken``.
+      One client, wrapped in a ``PATAuthenticator``.
+    - **Multi-org (Service Principal):** ``organizationUrls`` +
+      ``clientId`` + ``clientSecret`` + ``tenantId``. One
+      ``ServicePrincipalAuthenticator`` is shared across every org client so the
+      Entra ID token is fetched once per manager.
     """
 
     def __init__(self) -> None:
         self._clients: dict[str, AzureDevopsClient] = {}
+        self._authenticator: Optional[Authenticator] = None
 
     @property
     def is_multi_org(self) -> bool:
@@ -37,6 +46,24 @@ class AzureDevopsClientManager:
 
     def get_client_for_org(self, org_url: str) -> Optional[AzureDevopsClient]:
         return self._clients.get(_normalize_org_url(org_url))
+
+    def get_client_for_org_or_first(self, org_url: Optional[str]) -> AzureDevopsClient:
+        """Look up the per-org client; fall back to the first configured
+        client when ``org_url`` is None or not in the manager.
+
+        Centralizes the degradation rule used by webhook and GitOps
+        routing: an event carrying an unknown org still gets handled, and
+        single-org deployments (whose entities carry no
+        ``__organizationUrl``) just get the sole configured client.
+        """
+        if org_url:
+            client = self.get_client_for_org(org_url)
+            if client is not None:
+                return client
+        clients = list(self._clients.values())
+        if not clients:
+            raise ValueError("No Azure DevOps clients configured")
+        return clients[0]
 
     @classmethod
     def create_from_ocean_config(cls) -> "AzureDevopsClientManager":
@@ -54,30 +81,41 @@ class AzureDevopsClientManager:
     def _build_from_ocean_config(cls) -> "AzureDevopsClientManager":
         organization_url = ocean.integration_config.get("organization_url")
         personal_access_token = ocean.integration_config.get("personal_access_token")
-        organization_token_mapping = ocean.integration_config.get(
-            "organization_token_mapping"
-        )
+        organization_urls = ocean.integration_config.get("organization_urls") or []
+        tenant_id = ocean.integration_config.get("tenant_id")
+        client_id = ocean.integration_config.get("client_id")
+        client_secret = ocean.integration_config.get("client_secret")
         webhook_auth_username = ocean.integration_config.get("webhook_auth_username")
 
         validate_azure_devops_config(
             organization_url=organization_url,
             personal_access_token=personal_access_token,
-            organization_token_mapping=organization_token_mapping,
+            organization_urls=organization_urls,
+            client_id=client_id,
+            client_secret=client_secret,
+            tenant_id=tenant_id,
         )
 
         manager = cls()
-        if organization_token_mapping:
-            mapping = json.loads(organization_token_mapping)
-            for raw_url, pat in mapping.items():
+        if organization_urls and client_id and client_secret and tenant_id:
+            authenticator: Authenticator = ServicePrincipalAuthenticator(
+                tenant_id=tenant_id,
+                client_id=client_id,
+                client_secret=client_secret,
+            )
+            manager._authenticator = authenticator
+            for raw_url in organization_urls:
                 normalized = _normalize_org_url(raw_url)
                 manager._clients[normalized] = AzureDevopsClient(
-                    normalized, pat, webhook_auth_username
+                    normalized, authenticator, webhook_auth_username
                 )
         else:
             assert organization_url is not None
             assert personal_access_token is not None
             normalized = _normalize_org_url(organization_url)
+            authenticator = PATAuthenticator(personal_access_token)
+            manager._authenticator = authenticator
             manager._clients[normalized] = AzureDevopsClient(
-                normalized, personal_access_token, webhook_auth_username
+                normalized, authenticator, webhook_auth_username
             )
         return manager

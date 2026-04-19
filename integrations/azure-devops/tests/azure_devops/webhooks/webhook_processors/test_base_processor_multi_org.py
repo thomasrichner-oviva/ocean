@@ -14,7 +14,6 @@ Covered behavior:
   ``_handle_webhook_event`` and enriches the result
 """
 
-import json
 from typing import Any, Dict, Generator
 from unittest.mock import MagicMock
 
@@ -33,6 +32,10 @@ from azure_devops.client.azure_devops_client import AzureDevopsClient
 from azure_devops.webhooks.webhook_processors.base_processor import (
     AzureDevOpsBaseWebhookProcessor,
 )
+
+
+_SP_KEYS = ("organization_urls", "client_id", "client_secret", "tenant_id")
+_LEGACY_KEYS = ("organization_url", "personal_access_token")
 
 
 @pytest.fixture
@@ -72,22 +75,21 @@ def processor() -> _ConcreteProcessor:
 
 
 @pytest.fixture
-def set_multi_org_mapping() -> Generator[Dict[str, str], None, None]:
-    mapping = {
-        "https://dev.azure.com/org-one": "pat-one",
-        "https://dev.azure.com/org-two": "pat-two",
-    }
+def set_multi_org_service_principal() -> Generator[list[str], None, None]:
+    urls = [
+        "https://dev.azure.com/org-one",
+        "https://dev.azure.com/org-two",
+    ]
     previous: Dict[str, Any] = {
-        "organization_url": ocean.integration_config.get("organization_url"),
-        "personal_access_token": ocean.integration_config.get("personal_access_token"),
-        "organization_token_mapping": ocean.integration_config.get(
-            "organization_token_mapping"
-        ),
+        key: ocean.integration_config.get(key) for key in _LEGACY_KEYS + _SP_KEYS
     }
-    ocean.integration_config["organization_url"] = None
-    ocean.integration_config["personal_access_token"] = None
-    ocean.integration_config["organization_token_mapping"] = json.dumps(mapping)
-    yield mapping
+    for key in _LEGACY_KEYS:
+        ocean.integration_config[key] = None
+    ocean.integration_config["organization_urls"] = urls
+    ocean.integration_config["client_id"] = "sp-client-id"
+    ocean.integration_config["client_secret"] = "sp-client-secret"
+    ocean.integration_config["tenant_id"] = "sp-tenant-id"
+    yield urls
     for key, value in previous.items():
         ocean.integration_config[key] = value
 
@@ -133,7 +135,7 @@ def test_extract_org_url_returns_none_when_no_containers() -> None:
 
 def test_get_client_for_webhook_returns_per_org_client_on_match(
     processor: _ConcreteProcessor,
-    set_multi_org_mapping: Dict[str, str],
+    set_multi_org_service_principal: list[str],
     clean_event_context: None,
 ) -> None:
     payload: EventPayload = {
@@ -160,27 +162,20 @@ def test_get_client_for_webhook_falls_back_when_container_missing(
 
 def test_get_client_for_webhook_falls_back_on_unknown_org(
     processor: _ConcreteProcessor,
-    set_multi_org_mapping: Dict[str, str],
+    set_multi_org_service_principal: list[str],
     clean_event_context: None,
 ) -> None:
-    """If the extracted org URL isn't in the mapping, fall back to the
-    legacy factory (which logs a warning)."""
+    """If the extracted org URL isn't in the configured list, fall back to
+    the first available client (the handler will log a warning). This is a
+    best-effort degradation — the caller may still reject the event."""
     payload: EventPayload = {
         "resourceContainers": {
             "account": {"baseUrl": "https://dev.azure.com/unknown-org/"}
         }
     }
-    # In multi-org-only mode, ocean.integration_config["organization_url"]
-    # is None, so the legacy factory will raise. Restore legacy fields so
-    # the fallback has something to return.
-    ocean.integration_config["organization_url"] = "https://dev.azure.com/test-org"
-    ocean.integration_config["personal_access_token"] = "test-pat"
-    try:
-        client = processor._get_client_for_webhook(payload)
-        assert client._organization_base_url == "https://dev.azure.com/test-org"
-    finally:
-        ocean.integration_config["organization_url"] = None
-        ocean.integration_config["personal_access_token"] = None
+    client = processor._get_client_for_webhook(payload)
+    assert isinstance(client, AzureDevopsClient)
+    assert client._organization_base_url in set_multi_org_service_principal
 
 
 def test_enrich_webhook_results_annotates_both_lists(

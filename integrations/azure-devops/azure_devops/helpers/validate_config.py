@@ -1,68 +1,61 @@
-import json
 from urllib.parse import urlparse
 
-from loguru import logger
+
+_MODE_HINT = (
+    "Azure DevOps integration requires either:\n"
+    "  (a) organizationUrl + personalAccessToken for legacy single-org mode, or\n"
+    "  (b) organizationUrls + clientId + clientSecret + tenantId for "
+    "Service Principal multi-org mode."
+)
 
 
 def validate_azure_devops_config(
     organization_url: str | None,
     personal_access_token: str | None,
-    organization_token_mapping: str | None,
+    organization_urls: list[str] | None,
+    client_id: str | None,
+    client_secret: str | None,
+    tenant_id: str | None,
 ) -> None:
     """Validate Azure DevOps integration config at startup.
 
-    Requires either the legacy single-org pair (organizationUrl +
-    personalAccessToken) or the multi-org organizationTokenMapping JSON
-    string.
+    Exactly one of the two modes must be configured:
+    - legacy single-org PAT, or
+    - Service Principal multi-org.
     """
     is_single_org = bool(organization_url) and bool(personal_access_token)
-    multi_org_mapping_str = (
-        organization_token_mapping.strip() if organization_token_mapping else ""
+    has_any_sp_field = bool(
+        client_id or client_secret or tenant_id or organization_urls
+    )
+    has_all_sp_fields = bool(
+        organization_urls and client_id and client_secret and tenant_id
     )
 
-    if multi_org_mapping_str and is_single_org:
-        logger.warning(
-            "Both legacy organizationUrl/personalAccessToken and "
-            "organizationTokenMapping are set; organizationTokenMapping takes precedence."
-        )
+    if not is_single_org and not has_all_sp_fields:
+        raise ValueError(_MODE_HINT)
 
-    if not multi_org_mapping_str and not is_single_org:
+    if is_single_org and has_any_sp_field:
         raise ValueError(
-            "Azure DevOps integration requires either organizationUrl + "
-            "personalAccessToken or organizationTokenMapping."
+            "Azure DevOps integration config mixes single-org fields with "
+            "Service Principal fields. Pick one mode.\n" + _MODE_HINT
         )
 
-    if not multi_org_mapping_str:
-        logger.debug(
-            "An `organizationTokenMapping` was not provided, skipping multi-org setup"
-        )
-        return
+    if has_all_sp_fields:
+        _validate_organization_urls(organization_urls or [])
 
-    try:
-        multi_org_mapping = json.loads(multi_org_mapping_str)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"organizationTokenMapping must be a valid JSON string: {exc}")
 
-    if not isinstance(multi_org_mapping, dict):
-        raise ValueError(
-            "organizationTokenMapping must be a JSON object of {org_url: PAT}."
-        )
+def _validate_organization_urls(organization_urls: list[str]) -> None:
+    if not organization_urls:
+        raise ValueError("organizationUrls must contain at least one organization URL.")
 
-    if not multi_org_mapping:
-        raise ValueError("organizationTokenMapping is empty.")
-
-    for org_url, pat in multi_org_mapping.items():
-        if not isinstance(org_url, str) or not org_url.strip():
+    for raw_url in organization_urls:
+        if not isinstance(raw_url, str) or not raw_url.strip():
             raise ValueError(
-                "organizationTokenMapping keys must be non-empty organization URL strings."
+                "organizationUrls entries must be non-empty organization URL strings."
             )
-        parsed = urlparse(org_url)
+        parsed = urlparse(raw_url)
         if not parsed.scheme or not parsed.netloc:
             raise ValueError(
-                f"organizationTokenMapping key '{org_url}' is not a well-formed URL "
+                f"organizationUrls entry '{raw_url}' is not a well-formed URL "
                 f"(expected e.g. 'https://dev.azure.com/{{organization}}')."
-            )
-        if not isinstance(pat, str) or not pat.strip():
-            raise ValueError(
-                f"organizationTokenMapping value for '{org_url}' must be a non-empty Personal Access Token."
             )

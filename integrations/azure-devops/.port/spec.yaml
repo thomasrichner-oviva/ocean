@@ -10,7 +10,7 @@ features:
     section: Git Providers
 configurations:
   - name: organizationUrl
-    description: The URL of your Azure DevOps organization (e.g., "https://dev.azure.com/{your-organization}"). To find your organization URL, refer to the <a target="_blank" href="https://learn.microsoft.com/en-us/azure/devops/extend/develop/work-with-urls?view=azure-devops&tabs=http">Azure DevOps documentation</a>. Used for single-organization deployments; for multi-org, use organizationTokenMapping instead.
+    description: The URL of your Azure DevOps organization (e.g., "https://dev.azure.com/{your-organization}"). To find your organization URL, refer to the <a target="_blank" href="https://learn.microsoft.com/en-us/azure/devops/extend/develop/work-with-urls?view=azure-devops&tabs=http">Azure DevOps documentation</a>. Used for single-organization deployments; for multi-org, use organizationUrls with Service Principal credentials instead.
     required: false
     type: url
     sensitive: true
@@ -19,9 +19,23 @@ configurations:
     required: false
     type: string
     sensitive: true
-  - name: organizationTokenMapping
+  - name: organizationUrls
     description: >
-      A JSON string mapping Azure DevOps organization URLs to their Personal Access Tokens, for multi-organization support. When provided, takes precedence over organizationUrl/personalAccessToken. Each PAT must have read permissions for its corresponding organization. Example: '{"https://dev.azure.com/org1": "PAT1", "https://dev.azure.com/org2": "PAT2"}'. See the <a target="_blank" href="https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops">Azure DevOps PAT documentation</a>.
+      List of Azure DevOps organization URLs the Service Principal is authorized to access. Used together with clientId, clientSecret, and tenantId for multi-organization deployments. Example: ["https://dev.azure.com/org1", "https://dev.azure.com/org2"]. See the <a target="_blank" href="https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/service-principal-managed-identity?view=azure-devops">Azure DevOps Service Principal documentation</a>.
+    required: false
+    type: array
+  - name: clientId
+    description: The Application (client) ID of the Microsoft Entra ID app registration used as a Service Principal. Required for multi-organization mode.
+    required: false
+    type: string
+    sensitive: true
+  - name: clientSecret
+    description: The client secret for the Microsoft Entra ID app registration. Required for multi-organization mode.
+    required: false
+    type: string
+    sensitive: true
+  - name: tenantId
+    description: The Microsoft Entra ID tenant (directory) ID that owns the app registration. Required for multi-organization mode.
     required: false
     type: string
     sensitive: true

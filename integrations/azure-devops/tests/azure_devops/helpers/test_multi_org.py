@@ -1,4 +1,3 @@
-import json
 from typing import Any, AsyncGenerator, Generator
 from unittest.mock import MagicMock
 
@@ -15,6 +14,28 @@ from azure_devops.helpers.multi_org import (
 )
 
 
+_SP_KEYS = ("organization_urls", "client_id", "client_secret", "tenant_id")
+_LEGACY_KEYS = ("organization_url", "personal_access_token")
+
+
+def _snapshot_config() -> dict[str, Any]:
+    return {key: ocean.integration_config.get(key) for key in _LEGACY_KEYS + _SP_KEYS}
+
+
+def _restore_config(snapshot: dict[str, Any]) -> None:
+    for key, value in snapshot.items():
+        ocean.integration_config[key] = value
+
+
+def _set_sp_mode(urls: list[str]) -> None:
+    for key in _LEGACY_KEYS:
+        ocean.integration_config[key] = None
+    ocean.integration_config["organization_urls"] = urls
+    ocean.integration_config["client_id"] = "sp-client-id"
+    ocean.integration_config["client_secret"] = "sp-client-secret"
+    ocean.integration_config["tenant_id"] = "sp-tenant-id"
+
+
 @pytest.fixture
 def event_context() -> Generator[None, None, None]:
     ctx = EventContext(event_type="TEST", attributes={})
@@ -25,50 +46,25 @@ def event_context() -> Generator[None, None, None]:
 
 @pytest.fixture
 def set_legacy_single_org() -> Generator[None, None, None]:
-    previous: dict[str, Any] = {
-        "organization_url": ocean.integration_config.get("organization_url"),
-        "personal_access_token": ocean.integration_config.get("personal_access_token"),
-        "organization_token_mapping": ocean.integration_config.get(
-            "organization_token_mapping"
-        ),
-    }
+    previous = _snapshot_config()
     ocean.integration_config["organization_url"] = "https://dev.azure.com/single-org"
     ocean.integration_config["personal_access_token"] = "single-pat"
-    ocean.integration_config["organization_token_mapping"] = None
+    for key in _SP_KEYS:
+        ocean.integration_config[key] = None
     yield
-    for key, value in previous.items():
-        ocean.integration_config[key] = value
+    _restore_config(previous)
 
 
 @pytest.fixture
-def set_multi_org_mapping() -> Generator[dict[str, str], None, None]:
-    mapping = {
-        "https://dev.azure.com/org-one": "pat-one",
-        "https://dev.azure.com/org-two": "pat-two",
-    }
-    previous: dict[str, Any] = {
-        "organization_url": ocean.integration_config.get("organization_url"),
-        "personal_access_token": ocean.integration_config.get("personal_access_token"),
-        "organization_token_mapping": ocean.integration_config.get(
-            "organization_token_mapping"
-        ),
-    }
-    ocean.integration_config["organization_url"] = None
-    ocean.integration_config["personal_access_token"] = None
-    ocean.integration_config["organization_token_mapping"] = json.dumps(mapping)
-    yield mapping
-    for key, value in previous.items():
-        ocean.integration_config[key] = value
-
-
-def _fake_batches(
-    batches: list[list[dict[str, Any]]],
-) -> AsyncGenerator[list[dict[str, Any]], None]:
-    async def gen() -> AsyncGenerator[list[dict[str, Any]], None]:
-        for batch in batches:
-            yield batch
-
-    return gen()
+def set_multi_org_service_principal() -> Generator[list[str], None, None]:
+    previous = _snapshot_config()
+    urls = [
+        "https://dev.azure.com/org-one",
+        "https://dev.azure.com/org-two",
+    ]
+    _set_sp_mode(urls)
+    yield urls
+    _restore_config(previous)
 
 
 @pytest.mark.asyncio
@@ -85,12 +81,10 @@ async def test_single_org_yields_enriched_batches(
     async for batch in iterate_per_organization(handler):
         results.append(batch)
 
-    # Two batches in the same order the handler yielded them.
     assert len(results) == 2
     assert [item["id"] for item in results[0]] == ["p1", "p2"]
     assert [item["id"] for item in results[1]] == ["p3"]
 
-    # Every entity is enriched with the single org's metadata.
     for batch in results:
         for entity in batch:
             assert entity["__organizationUrl"] == "https://dev.azure.com/single-org"
@@ -117,15 +111,13 @@ async def test_single_org_propagates_handler_exception(
 
 @pytest.mark.asyncio
 async def test_multi_org_yields_batches_from_every_org(
-    set_multi_org_mapping: dict[str, str], event_context: None
+    set_multi_org_service_principal: list[str], event_context: None
 ) -> None:
     calls: list[str] = []
 
     async def handler(
         client: AzureDevopsClient,
     ) -> AsyncGenerator[list[dict[str, Any]], None]:
-        # Each client carries its org URL; use it to emit a distinct
-        # entity per org so we can check enrichment below.
         calls.append(client._organization_base_url)
         yield [{"id": f"{client._organization_base_url}::entity"}]
 
@@ -133,25 +125,22 @@ async def test_multi_org_yields_batches_from_every_org(
     async for batch in iterate_per_organization(handler):
         results.extend(batch)
 
-    # Handler ran once per configured org.
-    assert sorted(calls) == sorted(set_multi_org_mapping.keys())
+    assert sorted(calls) == sorted(set_multi_org_service_principal)
 
-    # Each returned entity is enriched with the org it came from.
     per_org = {entity["__organizationUrl"]: entity for entity in results}
-    assert set(per_org.keys()) == set(set_multi_org_mapping.keys())
+    assert set(per_org.keys()) == set(set_multi_org_service_principal)
     assert per_org["https://dev.azure.com/org-one"]["__organizationName"] == "org-one"
     assert per_org["https://dev.azure.com/org-two"]["__organizationName"] == "org-two"
 
 
 @pytest.mark.asyncio
 async def test_multi_org_error_isolation_one_failing_org(
-    set_multi_org_mapping: dict[str, str], event_context: None
+    set_multi_org_service_principal: list[str], event_context: None
 ) -> None:
     async def handler(
         client: AzureDevopsClient,
     ) -> AsyncGenerator[list[dict[str, Any]], None]:
         if client._organization_base_url == "https://dev.azure.com/org-one":
-            # First org fails hard after yielding nothing.
             raise RuntimeError("org-one is broken")
         yield [{"id": "ok-from-org-two"}]
 
@@ -159,8 +148,6 @@ async def test_multi_org_error_isolation_one_failing_org(
     async for batch in iterate_per_organization(handler):
         results.extend(batch)
 
-    # org-two's data is present and correctly enriched; org-one's
-    # failure was logged and swallowed without aborting the resync.
     assert len(results) == 1
     assert results[0]["id"] == "ok-from-org-two"
     assert results[0]["__organizationUrl"] == "https://dev.azure.com/org-two"
@@ -173,13 +160,9 @@ async def test_multi_org_respects_concurrency_bound(
     """With CONCURRENT_ORG_RESYNCS=5 and 7 configured orgs, at most 5
     handler coroutines should be in flight at any one moment.
     """
-    mapping = {f"https://dev.azure.com/org-{i}": f"pat-{i}" for i in range(7)}
-    previous_mapping = ocean.integration_config.get("organization_token_mapping")
-    previous_url = ocean.integration_config.get("organization_url")
-    previous_pat = ocean.integration_config.get("personal_access_token")
-    ocean.integration_config["organization_url"] = None
-    ocean.integration_config["personal_access_token"] = None
-    ocean.integration_config["organization_token_mapping"] = json.dumps(mapping)
+    urls = [f"https://dev.azure.com/org-{i}" for i in range(7)]
+    previous = _snapshot_config()
+    _set_sp_mode(urls)
 
     in_flight = 0
     max_in_flight = 0
@@ -192,7 +175,6 @@ async def test_multi_org_respects_concurrency_bound(
             nonlocal in_flight, max_in_flight
             in_flight += 1
             max_in_flight = max(max_in_flight, in_flight)
-            # Yield once then release the semaphore.
             yield [{"id": client._organization_base_url}]
             in_flight -= 1
 
@@ -203,9 +185,7 @@ async def test_multi_org_respects_concurrency_bound(
         assert len(batches) == 7, "Every org should have yielded a batch."
         assert max_in_flight <= CONCURRENT_ORG_RESYNCS
     finally:
-        ocean.integration_config["organization_token_mapping"] = previous_mapping
-        ocean.integration_config["organization_url"] = previous_url
-        ocean.integration_config["personal_access_token"] = previous_pat
+        _restore_config(previous)
 
 
 @pytest.mark.asyncio

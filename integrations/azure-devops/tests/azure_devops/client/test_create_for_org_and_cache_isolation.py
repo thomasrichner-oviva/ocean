@@ -1,4 +1,3 @@
-import json
 from typing import Any, Generator
 
 import pytest
@@ -7,7 +6,13 @@ from port_ocean.context.event import _event_context_stack, EventContext
 from port_ocean.context.ocean import ocean
 from port_ocean.utils.cache import hash_func
 
+from azure_devops.client.auth import PATAuthenticator
 from azure_devops.client.azure_devops_client import AzureDevopsClient
+from azure_devops.client.client_manager import AzureDevopsClientManager
+
+
+_SP_KEYS = ("organization_urls", "client_id", "client_secret", "tenant_id")
+_LEGACY_KEYS = ("organization_url", "personal_access_token")
 
 
 @pytest.fixture
@@ -19,46 +24,72 @@ def event_context() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def set_multi_org_mapping() -> Generator[dict[str, str], None, None]:
-    mapping = {
-        "https://dev.azure.com/org-alpha": "pat-alpha",
-        "https://dev.azure.com/org-beta": "pat-beta",
-    }
+def set_service_principal_multi_org() -> Generator[list[str], None, None]:
+    urls = [
+        "https://dev.azure.com/org-alpha",
+        "https://dev.azure.com/org-beta",
+    ]
     previous: dict[str, Any] = {
-        "organization_url": ocean.integration_config.get("organization_url"),
-        "personal_access_token": ocean.integration_config.get("personal_access_token"),
-        "organization_token_mapping": ocean.integration_config.get(
-            "organization_token_mapping"
-        ),
+        key: ocean.integration_config.get(key) for key in _LEGACY_KEYS + _SP_KEYS
     }
-    ocean.integration_config["organization_url"] = None
-    ocean.integration_config["personal_access_token"] = None
-    ocean.integration_config["organization_token_mapping"] = json.dumps(mapping)
-    yield mapping
+    for key in _LEGACY_KEYS:
+        ocean.integration_config[key] = None
+    ocean.integration_config["organization_urls"] = urls
+    ocean.integration_config["client_id"] = "sp-client-id"
+    ocean.integration_config["client_secret"] = "sp-client-secret"
+    ocean.integration_config["tenant_id"] = "sp-tenant-id"
+    yield urls
     for key, value in previous.items():
         ocean.integration_config[key] = value
 
 
-def test_create_for_org_returns_matching_client(
-    set_multi_org_mapping: dict[str, str], event_context: None
+def test_manager_returns_client_for_known_org(
+    set_service_principal_multi_org: list[str], event_context: None
 ) -> None:
-    client = AzureDevopsClient.create_for_org("https://dev.azure.com/org-alpha")
+    manager = AzureDevopsClientManager.create_from_ocean_config()
+    client = manager.get_client_for_org("https://dev.azure.com/org-alpha")
     assert isinstance(client, AzureDevopsClient)
     assert client._organization_base_url == "https://dev.azure.com/org-alpha"
 
 
-def test_create_for_org_normalizes_trailing_slash(
-    set_multi_org_mapping: dict[str, str], event_context: None
+def test_manager_normalizes_trailing_slash(
+    set_service_principal_multi_org: list[str], event_context: None
 ) -> None:
-    client = AzureDevopsClient.create_for_org("https://dev.azure.com/org-alpha/")
+    manager = AzureDevopsClientManager.create_from_ocean_config()
+    client = manager.get_client_for_org("https://dev.azure.com/org-alpha/")
+    assert client is not None
     assert client._organization_base_url == "https://dev.azure.com/org-alpha"
 
 
-def test_create_for_org_unknown_url_raises(
-    set_multi_org_mapping: dict[str, str], event_context: None
+def test_manager_returns_none_for_unknown_org(
+    set_service_principal_multi_org: list[str], event_context: None
 ) -> None:
-    with pytest.raises(ValueError, match="No client configured for organization"):
-        AzureDevopsClient.create_for_org("https://dev.azure.com/unknown-org")
+    manager = AzureDevopsClientManager.create_from_ocean_config()
+    assert manager.get_client_for_org("https://dev.azure.com/unknown-org") is None
+
+
+def test_get_client_for_org_or_first_falls_back_on_unknown(
+    set_service_principal_multi_org: list[str], event_context: None
+) -> None:
+    manager = AzureDevopsClientManager.create_from_ocean_config()
+    client = manager.get_client_for_org_or_first("https://dev.azure.com/unknown-org")
+    assert isinstance(client, AzureDevopsClient)
+    assert client._organization_base_url in set_service_principal_multi_org
+
+
+def test_get_client_for_org_or_first_with_none_returns_first(
+    set_service_principal_multi_org: list[str], event_context: None
+) -> None:
+    manager = AzureDevopsClientManager.create_from_ocean_config()
+    client = manager.get_client_for_org_or_first(None)
+    assert isinstance(client, AzureDevopsClient)
+    assert client._organization_base_url in set_service_principal_multi_org
+
+
+def test_get_client_for_org_or_first_raises_when_empty() -> None:
+    manager = AzureDevopsClientManager()
+    with pytest.raises(ValueError, match="No Azure DevOps clients configured"):
+        manager.get_client_for_org_or_first(None)
 
 
 CACHED_BACKING_METHODS = [
@@ -74,10 +105,10 @@ CACHED_BACKING_METHODS = [
 @pytest.mark.parametrize("method_name", CACHED_BACKING_METHODS)
 def test_cached_backing_method_keys_differ_across_orgs(method_name: str) -> None:
     client_alpha = AzureDevopsClient(
-        "https://dev.azure.com/org-alpha", "pat-alpha", "port"
+        "https://dev.azure.com/org-alpha", PATAuthenticator("pat-alpha"), "port"
     )
     client_beta = AzureDevopsClient(
-        "https://dev.azure.com/org-beta", "pat-beta", "port"
+        "https://dev.azure.com/org-beta", PATAuthenticator("pat-beta"), "port"
     )
     func = getattr(client_alpha, method_name).__wrapped__
 
@@ -95,9 +126,13 @@ def test_cached_backing_method_key_stable_for_same_org() -> None:
     (so single-org deployments still benefit from the cache, and the
     instance identity genuinely doesn't matter — only the org URL does).
     """
-    client_one = AzureDevopsClient("https://dev.azure.com/only-org", "pat-one", "port")
+    client_one = AzureDevopsClient(
+        "https://dev.azure.com/only-org", PATAuthenticator("pat-one"), "port"
+    )
     client_two = AzureDevopsClient(
-        "https://dev.azure.com/only-org", "pat-two-different-instance", "port"
+        "https://dev.azure.com/only-org",
+        PATAuthenticator("pat-two-different-instance"),
+        "port",
     )
     func = client_one._generate_projects_cached.__wrapped__  # type: ignore[attr-defined]
 

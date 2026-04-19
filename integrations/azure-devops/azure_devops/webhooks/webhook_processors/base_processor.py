@@ -15,6 +15,7 @@ from port_ocean.core.handlers.webhook.webhook_event import (
 )
 
 from azure_devops.client.azure_devops_client import AzureDevopsClient
+from azure_devops.client.client_manager import AzureDevopsClientManager
 from azure_devops.misc import extract_org_name_from_url
 
 
@@ -56,17 +57,15 @@ class AzureDevOpsBaseWebhookProcessor(AbstractWebhookProcessor):
 
     def _get_client_for_webhook(self, payload: EventPayload) -> AzureDevopsClient:
         """Resolve the per-org Azure DevOps client for a webhook event"""
+        manager = AzureDevopsClientManager.create_from_ocean_config()
         org_url = self._extract_org_url_from_payload(payload)
-        if org_url:
-            try:
-                return AzureDevopsClient.create_for_org(org_url)
-            except ValueError:
-                logger.warning(
-                    f"Webhook event references unknown organization {org_url}; "
-                    f"falling back to legacy client. "
-                    f"Check organizationTokenMapping config."
-                )
-        return AzureDevopsClient.create_from_ocean_config()
+        if org_url and manager.get_client_for_org(org_url) is None:
+            logger.warning(
+                f"Webhook event references unknown organization {org_url}; "
+                f"falling back to first configured client. "
+                f"Check organizationUrls / organizationUrl config."
+            )
+        return manager.get_client_for_org_or_first(org_url)
 
     def _enrich_webhook_results(
         self,

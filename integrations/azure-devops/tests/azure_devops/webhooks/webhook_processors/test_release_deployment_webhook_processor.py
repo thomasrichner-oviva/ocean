@@ -18,8 +18,9 @@ def deployment_processor(
     mock_client = MagicMock()
     mock_client.get_release_deployment = AsyncMock()
     monkeypatch.setattr(
-        "azure_devops.webhooks.webhook_processors.release_deployment_webhook_processor.AzureDevopsClient.create_from_ocean_config",
-        lambda: mock_client,
+        "azure_devops.webhooks.webhook_processors.base_processor."
+        "AzureDevOpsBaseWebhookProcessor._get_client_for_webhook",
+        lambda self, payload: mock_client,
     )
     return ReleaseDeploymentWebhookProcessor(event)
 
@@ -252,8 +253,9 @@ async def test_deployment_handle_event_completed_success(
         return_value={"id": 99, "deploymentStatus": "succeeded"}
     )
     monkeypatch.setattr(
-        "azure_devops.webhooks.webhook_processors.release_deployment_webhook_processor.AzureDevopsClient.create_from_ocean_config",
-        lambda: mock_client,
+        "azure_devops.webhooks.webhook_processors.base_processor."
+        "AzureDevOpsBaseWebhookProcessor._get_client_for_webhook",
+        lambda self, payload: mock_client,
     )
 
     payload = {
@@ -287,8 +289,9 @@ async def test_deployment_handle_event_started_success(
         return_value={"id": 99, "deploymentStatus": "inProgress"}
     )
     monkeypatch.setattr(
-        "azure_devops.webhooks.webhook_processors.release_deployment_webhook_processor.AzureDevopsClient.create_from_ocean_config",
-        lambda: mock_client,
+        "azure_devops.webhooks.webhook_processors.base_processor."
+        "AzureDevOpsBaseWebhookProcessor._get_client_for_webhook",
+        lambda self, payload: mock_client,
     )
 
     payload = {
@@ -319,8 +322,9 @@ async def test_deployment_handle_event_not_found(
     mock_client = MagicMock()
     mock_client.get_release_deployment = AsyncMock(return_value=None)
     monkeypatch.setattr(
-        "azure_devops.webhooks.webhook_processors.release_deployment_webhook_processor.AzureDevopsClient.create_from_ocean_config",
-        lambda: mock_client,
+        "azure_devops.webhooks.webhook_processors.base_processor."
+        "AzureDevOpsBaseWebhookProcessor._get_client_for_webhook",
+        lambda self, payload: mock_client,
     )
 
     payload = {

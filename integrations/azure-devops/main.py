@@ -217,9 +217,10 @@ async def validate_integration_config() -> None:
     validate_azure_devops_config(
         organization_url=ocean.integration_config.get("organization_url"),
         personal_access_token=ocean.integration_config.get("personal_access_token"),
-        organization_token_mapping=ocean.integration_config.get(
-            "organization_token_mapping"
-        ),
+        organization_urls=ocean.integration_config.get("organization_urls") or [],
+        client_id=ocean.integration_config.get("client_id"),
+        client_secret=ocean.integration_config.get("client_secret"),
+        tenant_id=ocean.integration_config.get("tenant_id"),
     )
 
 

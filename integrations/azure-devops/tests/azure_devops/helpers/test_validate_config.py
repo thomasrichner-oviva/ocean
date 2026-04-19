@@ -1,15 +1,26 @@
-import json
-
 import pytest
 
 from azure_devops.helpers.validate_config import validate_azure_devops_config
+
+
+_EMPTY_SP = {
+    "organization_urls": None,
+    "client_id": None,
+    "client_secret": None,
+    "tenant_id": None,
+}
+
+_EMPTY_LEGACY = {
+    "organization_url": None,
+    "personal_access_token": None,
+}
 
 
 def test_legacy_single_org_config_passes() -> None:
     validate_azure_devops_config(
         organization_url="https://dev.azure.com/myorg",
         personal_access_token="pat-12345",
-        organization_token_mapping=None,
+        **_EMPTY_SP,
     )
 
 
@@ -18,7 +29,7 @@ def test_legacy_config_missing_pat_raises() -> None:
         validate_azure_devops_config(
             organization_url="https://dev.azure.com/myorg",
             personal_access_token="",
-            organization_token_mapping=None,
+            **_EMPTY_SP,
         )
 
 
@@ -27,150 +38,133 @@ def test_legacy_config_missing_url_raises() -> None:
         validate_azure_devops_config(
             organization_url="",
             personal_access_token="pat-12345",
-            organization_token_mapping=None,
+            **_EMPTY_SP,
         )
 
 
 def test_no_config_at_all_raises() -> None:
     with pytest.raises(ValueError, match="requires either"):
         validate_azure_devops_config(
-            organization_url=None,
-            personal_access_token=None,
-            organization_token_mapping=None,
+            **_EMPTY_LEGACY,
+            **_EMPTY_SP,
         )
 
 
-def test_multi_org_valid_mapping_passes() -> None:
+def test_service_principal_config_passes() -> None:
     validate_azure_devops_config(
-        organization_url=None,
-        personal_access_token=None,
-        organization_token_mapping=json.dumps(
-            {
-                "https://dev.azure.com/org1": "pat-org1",
-                "https://dev.azure.com/org2": "pat-org2",
-            }
-        ),
+        **_EMPTY_LEGACY,
+        organization_urls=[
+            "https://dev.azure.com/org1",
+            "https://dev.azure.com/org2",
+        ],
+        client_id="client-id",
+        client_secret="client-secret",
+        tenant_id="tenant-id",
     )
 
 
-def test_multi_org_single_entry_passes() -> None:
+def test_service_principal_single_url_passes() -> None:
     validate_azure_devops_config(
-        organization_url=None,
-        personal_access_token=None,
-        organization_token_mapping=json.dumps(
-            {"https://dev.azure.com/only-org": "pat-only"}
-        ),
+        **_EMPTY_LEGACY,
+        organization_urls=["https://dev.azure.com/only-org"],
+        client_id="client-id",
+        client_secret="client-secret",
+        tenant_id="tenant-id",
     )
 
 
-def test_multi_org_visualstudio_url_passes() -> None:
+def test_service_principal_visualstudio_url_passes() -> None:
     validate_azure_devops_config(
-        organization_url=None,
-        personal_access_token=None,
-        organization_token_mapping=json.dumps(
-            {"https://myorg.visualstudio.com": "pat-vs"}
-        ),
+        **_EMPTY_LEGACY,
+        organization_urls=["https://myorg.visualstudio.com"],
+        client_id="client-id",
+        client_secret="client-secret",
+        tenant_id="tenant-id",
     )
 
 
-def test_malformed_json_raises() -> None:
-    with pytest.raises(ValueError, match="valid JSON string"):
+@pytest.mark.parametrize(
+    "missing_field",
+    ["client_id", "client_secret", "tenant_id"],
+)
+def test_service_principal_missing_credential_field_raises(missing_field: str) -> None:
+    fields: dict[str, str | None] = {
+        "client_id": "client-id",
+        "client_secret": "client-secret",
+        "tenant_id": "tenant-id",
+    }
+    fields[missing_field] = None
+    with pytest.raises(ValueError, match="requires either"):
         validate_azure_devops_config(
-            organization_url=None,
-            personal_access_token=None,
-            organization_token_mapping="{not valid json",
+            **_EMPTY_LEGACY,
+            organization_urls=["https://dev.azure.com/org1"],
+            **fields,
         )
 
 
-def test_json_list_instead_of_dict_raises() -> None:
-    with pytest.raises(ValueError, match="JSON object"):
+def test_service_principal_empty_urls_raises() -> None:
+    with pytest.raises(ValueError, match="requires either"):
         validate_azure_devops_config(
-            organization_url=None,
-            personal_access_token=None,
-            organization_token_mapping=json.dumps(
-                [
-                    {
-                        "organizationUrl": "https://dev.azure.com/a",
-                        "personalAccessToken": "p",
-                    }
-                ]
-            ),
+            **_EMPTY_LEGACY,
+            organization_urls=[],
+            client_id="client-id",
+            client_secret="client-secret",
+            tenant_id="tenant-id",
         )
 
 
-def test_json_scalar_raises() -> None:
-    with pytest.raises(ValueError, match="JSON object"):
+def test_mixing_legacy_and_sp_fields_raises() -> None:
+    with pytest.raises(ValueError, match="mixes single-org fields"):
         validate_azure_devops_config(
-            organization_url=None,
-            personal_access_token=None,
-            organization_token_mapping=json.dumps("just a string"),
+            organization_url="https://dev.azure.com/legacy",
+            personal_access_token="legacy-pat",
+            organization_urls=["https://dev.azure.com/sp-org"],
+            client_id="client-id",
+            client_secret="client-secret",
+            tenant_id="tenant-id",
         )
 
 
-def test_empty_json_dict_raises() -> None:
-    with pytest.raises(ValueError, match="empty"):
+def test_mixing_legacy_with_partial_sp_fields_raises() -> None:
+    with pytest.raises(ValueError, match="mixes single-org fields"):
         validate_azure_devops_config(
-            organization_url=None,
-            personal_access_token=None,
-            organization_token_mapping=json.dumps({}),
+            organization_url="https://dev.azure.com/legacy",
+            personal_access_token="legacy-pat",
+            organization_urls=None,
+            client_id="client-id",
+            client_secret=None,
+            tenant_id=None,
         )
 
 
-def test_malformed_url_key_raises() -> None:
+def test_malformed_url_in_organization_urls_raises() -> None:
     with pytest.raises(ValueError, match="well-formed URL"):
         validate_azure_devops_config(
-            organization_url=None,
-            personal_access_token=None,
-            organization_token_mapping=json.dumps({"not-a-url": "pat-12345"}),
+            **_EMPTY_LEGACY,
+            organization_urls=["not-a-url"],
+            client_id="client-id",
+            client_secret="client-secret",
+            tenant_id="tenant-id",
         )
 
 
-def test_bare_path_url_raises() -> None:
+def test_bare_path_in_organization_urls_raises() -> None:
     with pytest.raises(ValueError, match="well-formed URL"):
         validate_azure_devops_config(
-            organization_url=None,
-            personal_access_token=None,
-            organization_token_mapping=json.dumps({"/some/path": "pat-12345"}),
+            **_EMPTY_LEGACY,
+            organization_urls=["/some/path"],
+            client_id="client-id",
+            client_secret="client-secret",
+            tenant_id="tenant-id",
         )
 
 
-def test_empty_pat_value_raises() -> None:
+def test_empty_string_in_organization_urls_raises() -> None:
     with pytest.raises(ValueError, match="non-empty"):
         validate_azure_devops_config(
-            organization_url=None,
-            personal_access_token=None,
-            organization_token_mapping=json.dumps({"https://dev.azure.com/org1": ""}),
+            **_EMPTY_LEGACY,
+            organization_urls=["https://dev.azure.com/valid", "   "],
+            client_id="client-id",
+            client_secret="client-secret",
+            tenant_id="tenant-id",
         )
-
-
-def test_whitespace_only_pat_value_raises() -> None:
-    with pytest.raises(ValueError, match="non-empty"):
-        validate_azure_devops_config(
-            organization_url=None,
-            personal_access_token=None,
-            organization_token_mapping=json.dumps(
-                {"https://dev.azure.com/org1": "   "}
-            ),
-        )
-
-
-def test_non_string_pat_value_raises() -> None:
-    with pytest.raises(ValueError, match="non-empty Personal Access Token"):
-        validate_azure_devops_config(
-            organization_url=None,
-            personal_access_token=None,
-            organization_token_mapping=json.dumps(
-                {"https://dev.azure.com/org1": 12345}
-            ),
-        )
-
-
-def test_both_legacy_and_mapping_passes() -> None:
-    # Both set: validation passes (mapping wins at runtime), warning is logged.
-    validate_azure_devops_config(
-        organization_url="https://dev.azure.com/legacy",
-        personal_access_token="legacy-pat",
-        organization_token_mapping=json.dumps(
-            {"https://dev.azure.com/new-org": "new-pat"}
-        ),
-    )

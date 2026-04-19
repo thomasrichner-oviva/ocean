@@ -12,9 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Added multi-organization support
-- Added a new optional `organizationTokenMapping` config field that accepts a JSON string mapping organization URLs to their Personal Access Tokens.
-- Enriched every synced entity with `__organizationUrl` and `__organizationName` enrichment fields so custom JQ mappings can scope identifiers per organization.
+- Added multi-organization support via Microsoft Entra ID Service Principal authentication. Configure `organizationUrls` together with `clientId`, `clientSecret`, and `tenantId` to sync multiple Azure DevOps organizations from a single integration.
+- Enriched every synced entity with `__organizationUrl` and `__organizationName` fields so JQ mappings can scope identifiers per organization.
 
 
 ## 0.8.16 (2026-04-16)

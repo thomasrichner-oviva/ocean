@@ -4,6 +4,7 @@ from loguru import logger
 from port_ocean.core.handlers import JQEntityProcessor
 
 from azure_devops.client.azure_devops_client import AzureDevopsClient
+from azure_devops.client.client_manager import AzureDevopsClientManager
 from azure_devops.misc import extract_branch_name_from_ref
 
 FILE_PROPERTY_PREFIX = "file://"
@@ -12,17 +13,15 @@ JSON_SUFFIX = ".json"
 
 def _get_client_for_entity(data: Dict[str, Any]) -> AzureDevopsClient:
     """Resolve the per-org Azure DevOps client for a GitOps entity"""
+    manager = AzureDevopsClientManager.create_from_ocean_config_no_cache()
     org_url = data.get("__organizationUrl")
-    if org_url:
-        try:
-            return AzureDevopsClient.create_for_org(org_url)
-        except ValueError:
-            logger.warning(
-                f"GitOps entity references unknown organization {org_url}; "
-                f"falling back to legacy client. "
-                f"Check organizationTokenMapping config."
-            )
-    return AzureDevopsClient.create_from_ocean_config_no_cache()
+    if org_url and manager.get_client_for_org(org_url) is None:
+        logger.warning(
+            f"GitOps entity references unknown organization {org_url}; "
+            f"falling back to first configured client. "
+            f"Check organizationUrls / organizationUrl config."
+        )
+    return manager.get_client_for_org_or_first(org_url)
 
 
 class GitManipulationHandler(JQEntityProcessor):
