@@ -93,7 +93,7 @@ class BranchWebhookProcessor(_GitlabAbstractWebhookProcessor):
                 updated_raw_results=[branch], deleted_raw_results=[]
             )
 
-        logger.info(
+        logger.warning(
             f"Branch '{branch_name}' not found in project '{project_path}', skipping"
         )
         return WebhookEventRawResults(updated_raw_results=[], deleted_raw_results=[])

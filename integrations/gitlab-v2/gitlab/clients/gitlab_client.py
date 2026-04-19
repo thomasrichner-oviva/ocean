@@ -221,6 +221,41 @@ class GitLabClient:
             return None
         return self.enrich_with_project_path(branch, project["path_with_namespace"])
 
+    async def _fetch_default_branch(
+        self, project: dict[str, Any], semaphore: asyncio.Semaphore
+    ) -> dict[str, Any] | None:
+        async with semaphore:
+            default_branch = project.get("default_branch")
+            if not default_branch:
+                return None
+            return await self.get_single_branch(project, default_branch)
+
+    async def _get_default_branches(
+        self,
+        projects_batch: list[dict[str, Any]],
+        max_concurrent: int = 10,
+    ) -> AsyncIterator[list[dict[str, Any]]]:
+        semaphore = asyncio.Semaphore(max_concurrent)
+        results = await asyncio.gather(
+            *[
+                self._fetch_default_branch(project, semaphore)
+                for project in projects_batch
+            ],
+            return_exceptions=True,
+        )
+        branches = []
+        for project, result in zip(projects_batch, results):
+            if isinstance(result, BaseException):
+                logger.error(
+                    f"Failed to fetch default branch for project "
+                    f"'{project.get('path_with_namespace', project.get('id'))}': {result}"
+                )
+            elif isinstance(result, dict) and result:
+                branches.append(result)
+        if branches:
+            logger.info(f"Received batch with {len(branches)} default branches")
+            yield branches
+
     async def get_branches(
         self,
         projects_batch: list[dict[str, Any]],
@@ -228,42 +263,10 @@ class GitLabClient:
         default_branches_only: bool = True,
         params: Optional[dict[str, Any]] = None,
     ) -> AsyncIterator[list[dict[str, Any]]]:
-        """Fetch branches for each project in the batch.
-
-        When default_branches_only is True, fetches only the default branch for each
-        project via a single targeted request instead of listing all branches.
-
-        Args:
-            projects_batch: List of projects to fetch branches for
-            max_concurrent: Maximum number of concurrent requests
-            default_branches_only: When True, fetch only the default branch per project
-            params: Additional query parameters (regex, search) for non-default-only mode
-        """
         if default_branches_only:
-            semaphore = asyncio.Semaphore(max_concurrent)
-
-            async def _fetch(project: dict[str, Any]) -> dict[str, Any] | None:
-                async with semaphore:
-                    default_branch = project.get("default_branch")
-                    if not default_branch:
-                        return None
-                    return await self.get_single_branch(project, default_branch)
-
-            results = await asyncio.gather(
-                *[_fetch(project) for project in projects_batch],
-                return_exceptions=True,
-            )
-            branches = []
-            for project, result in zip(projects_batch, results):
-                if isinstance(result, BaseException):
-                    logger.error(
-                        f"Failed to fetch default branch for project "
-                        f"'{project.get('path_with_namespace', project.get('id'))}': {result}"
-                    )
-                elif isinstance(result, dict) and result:
-                    branches.append(result)
-            if branches:
-                logger.info(f"Received batch with {len(branches)} default branches")
+            async for branches in self._get_default_branches(
+                projects_batch, max_concurrent
+            ):
                 yield branches
         else:
             async for branches_batch in self.get_projects_resource_with_enrichment(
