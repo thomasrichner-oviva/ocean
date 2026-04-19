@@ -129,7 +129,7 @@ class JiraClient(OAuthClient):
 
         cloud_id = await self._get_cloud_id()
         self._agile_api_url = (
-            f"https://api.atlassian.com/ex/jira/{cloud_id}/rest/agile/1.0"
+            f"https://api.atlassian.com/ex/jira/{cloud_id}/rest/agile/latest"
         )
         logger.debug(f"Resolved agile API URL: {self._agile_api_url}")
         return self._agile_api_url
@@ -157,7 +157,7 @@ class JiraClient(OAuthClient):
         normalized_jira_url = self.jira_url.rstrip("/")
         for resource in resources:
             if resource.get("url", "").rstrip("/") == normalized_jira_url:
-                resolved_id: str = resource["id"]
+                resolved_id: str = resource.get("id")
                 logger.debug(f"Resolved cloud ID {resolved_id} for {self.jira_url}")
                 return resolved_id
 
@@ -247,7 +247,7 @@ class JiraClient(OAuthClient):
         initial_params: dict[str, Any] | None = None,
     ) -> AsyncGenerator[list[dict[str, Any]], None]:
         """Paginate Jira Agile REST API endpoints using offset-based pagination."""
-        params: dict[str, Any] = initial_params or {}
+        params: dict[str, Any] = {**(initial_params or {})}
         params.setdefault("maxResults", PAGE_SIZE)
         start_at = 0
 
@@ -632,3 +632,38 @@ class JiraClient(OAuthClient):
         return await self._send_api_request(
             "GET", f"{resource_base_url}/board/{board_id}"
         )
+
+    async def get_board_projects(
+        self, board_id: int
+    ) -> AsyncGenerator[list[dict[str, Any]], None]:
+        """Fetch all projects associated with a board.
+
+        A board can be associated with multiple projects when its JQL filter
+        references more than one project. Uses the Agile REST API endpoint:
+        GET /rest/agile/1.0/board/{boardId}/project
+        """
+        agile_url = await self._get_agile_api_url()
+        async for project_batch in self._get_agile_paginated_data(
+            url=f"{agile_url}/board/{board_id}/project",
+        ):
+            yield project_batch
+
+    async def enrich_board_with_projects(self, board: dict[str, Any]) -> dict[str, Any]:
+        """Enrich a board with all associated project keys.
+
+        Fetches all projects for the board and injects __projectKeys
+        as a list for relation mapping.
+
+        Args:
+            board: The raw board object from the list endpoint.
+        """
+        board_id: int = board["id"]
+        project_keys: list[str] = []
+
+        async for project_batch in self.get_board_projects(board_id):
+            project_keys.extend(
+                project["key"] for project in project_batch if project.get("key")
+            )
+
+        board["__projectKeys"] = project_keys
+        return board

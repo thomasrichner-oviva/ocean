@@ -1,4 +1,5 @@
 from typing import Any
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -987,7 +988,8 @@ async def test_successfully_resolves_agile_url_for_oauth(
             agile_url = await mock_jira_client._get_agile_api_url()
 
     assert (
-        agile_url == f"https://api.atlassian.com/ex/jira/{mock_cloud_id}/rest/agile/1.0"
+        agile_url
+        == f"https://api.atlassian.com/ex/jira/{mock_cloud_id}/rest/agile/latest"
     )
 
 
@@ -1167,3 +1169,179 @@ async def test_get_cloud_id_falls_back_to_accessible_resources_for_non_gateway_u
         "GET",
         "https://api.atlassian.com/oauth/token/accessible-resources",
     )
+
+
+@pytest.mark.asyncio
+async def test_get_board_projects_returns_projects_for_board(
+    mock_jira_client: JiraClient,
+) -> None:
+    mock_projects_response = {
+        "isLast": True,
+        "maxResults": 50,
+        "startAt": 0,
+        "total": 2,
+        "values": [
+            {"id": "10000", "key": "PORT", "name": "Port"},
+            {"id": "10001", "key": "DEMO", "name": "Demo"},
+        ],
+    }
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_projects_response
+
+        project_batches = []
+        async for batch in mock_jira_client.get_board_projects(board_id=1):
+            project_batches.append(batch)
+
+    assert len(project_batches) == 1
+    assert len(project_batches[0]) == 2
+    assert project_batches[0][0]["key"] == "PORT"
+    assert project_batches[0][1]["key"] == "DEMO"
+
+
+@pytest.mark.asyncio
+async def test_get_board_projects_returns_empty_when_no_projects(
+    mock_jira_client: JiraClient,
+) -> None:
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "isLast": True,
+            "maxResults": 50,
+            "startAt": 0,
+            "total": 0,
+            "values": [],
+        }
+
+        project_batches = []
+        async for batch in mock_jira_client.get_board_projects(board_id=1):
+            project_batches.append(batch)
+
+    assert len(project_batches) == 0
+
+
+@pytest.mark.asyncio
+async def test_enrich_board_with_projects_injects_project_keys(
+    mock_jira_client: JiraClient,
+) -> None:
+    board = {**MOCK_BOARD_API_RESPONSE}
+    mock_projects_response = {
+        "isLast": True,
+        "values": [
+            {"id": "10000", "key": "PORT", "name": "Port"},
+            {"id": "10001", "key": "DEMO", "name": "Demo"},
+        ],
+    }
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_projects_response
+
+        enriched = await mock_jira_client.enrich_board_with_projects(board)
+
+    assert "__projectKeys" in enriched
+    assert enriched["__projectKeys"] == ["PORT", "DEMO"]
+
+
+@pytest.mark.asyncio
+async def test_enrich_board_with_projects_returns_empty_list_when_no_projects(
+    mock_jira_client: JiraClient,
+) -> None:
+    board = {**MOCK_BOARD_API_RESPONSE}
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "isLast": True,
+            "values": [],
+        }
+
+        enriched = await mock_jira_client.enrich_board_with_projects(board)
+
+    assert enriched["__projectKeys"] == []
+
+
+@pytest.mark.asyncio
+async def test_enrich_board_with_projects_skips_projects_with_missing_key(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Projects missing the key field must be skipped — guards against malformed API responses."""
+    board = {**MOCK_BOARD_API_RESPONSE}
+    mock_projects_response = {
+        "isLast": True,
+        "values": [
+            {"id": "10000", "key": "PORT", "name": "Port"},
+            {"id": "10001", "name": "Broken project"},  # key absent
+            {"id": "10002", "key": None, "name": "Null key project"},  # key is None
+        ],
+    }
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_projects_response
+
+        enriched = await mock_jira_client.enrich_board_with_projects(board)
+
+    assert enriched["__projectKeys"] == ["PORT"]
+
+
+@pytest.mark.asyncio
+async def test_get_paginated_boards_enriches_boards_with_project_keys(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Resync handler must enrich each board batch with project keys concurrently."""
+    boards_response = {
+        "isLast": True,
+        "values": [MOCK_BOARD_API_RESPONSE],
+    }
+    projects_response = {
+        "isLast": True,
+        "values": [
+            {"id": "10000", "key": "PORT", "name": "Port"},
+        ],
+    }
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.side_effect = [boards_response, projects_response]
+
+        batches = []
+        async for batch in mock_jira_client.get_paginated_boards():
+            # Simulate what resync handler does
+            enriched = await asyncio.gather(
+                *[mock_jira_client.enrich_board_with_projects(b) for b in batch]
+            )
+            batches.append(list(enriched))
+
+    assert len(batches) == 1
+    assert batches[0][0]["__projectKeys"] == ["PORT"]
+
+
+@pytest.mark.asyncio
+async def test_enrich_board_with_projects_does_not_mutate_original_board_reference(
+    mock_jira_client: JiraClient,
+) -> None:
+    """enrich_board_with_projects mutates the board dict in place —
+    verify __projectKeys is injected on the same object returned."""
+    board = {**MOCK_BOARD_API_RESPONSE}
+    original_id = id(board)
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {
+            "isLast": True,
+            "values": [{"id": "10000", "key": "PORT", "name": "Port"}],
+        }
+
+        enriched = await mock_jira_client.enrich_board_with_projects(board)
+
+    assert id(enriched) == original_id
+    assert "__projectKeys" in board

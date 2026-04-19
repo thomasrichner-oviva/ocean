@@ -224,22 +224,11 @@
     "icon": "Jira",
     "schema": {
       "properties": {
-        "url": {
-          "title": "Board API URL",
-          "type": "string",
-          "format": "url",
-          "description": "REST API URL to the board in Jira"
-        },
         "type": {
           "title": "Board Type",
           "type": "string",
           "description": "The type of the board",
-          "enum": ["scrum", "kanban", "simple"],
-          "enumColors": {
-            "scrum": "blue",
-            "kanban": "green",
-            "simple": "lightGray"
-          }
+          "enum": ["scrum", "kanban", "simple"]
         },
         "isPrivate": {
           "title": "Private",
@@ -250,11 +239,6 @@
           "title": "Project Key",
           "type": "string",
           "description": "The key of the project this board belongs to"
-        },
-        "projectName": {
-          "title": "Project Name",
-          "type": "string",
-          "description": "The name of the project this board belongs to"
         },
         "projectTypeKey": {
           "title": "Project Type",
@@ -289,7 +273,7 @@
         "description": "The Jira project this board belongs to",
         "target": "jiraProject",
         "required": false,
-        "many": false
+        "many": true
       }
     }
   }

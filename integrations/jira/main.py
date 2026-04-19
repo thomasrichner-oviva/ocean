@@ -1,3 +1,4 @@
+import asyncio
 from typing import cast, Any
 
 from loguru import logger
@@ -116,8 +117,12 @@ async def on_resync_boards(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
         params["projectKeyOrId"] = selector.project_key
 
     async for board_batch in client.get_paginated_boards(params):
+        enriched_boards = await asyncio.gather(
+            *[client.enrich_board_with_projects(board) for board in board_batch]
+        )
         logger.info(f"Received board batch with {len(board_batch)} boards")
-        yield board_batch
+        # yield board_batch
+        yield list(enriched_boards)
 
 
 # Called once when the integration starts.

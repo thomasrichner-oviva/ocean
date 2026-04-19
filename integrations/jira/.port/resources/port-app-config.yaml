@@ -88,11 +88,9 @@ resources:
           properties:
             type: .type
             isPrivate: .isPrivate
-            url: .self
             projectKey: .location.projectKey // null
-            projectName: .location.projectName // null
             projectTypeKey: .location.projectTypeKey // null
             adminUsers: '[.admins.users[]? | select(.accountId != null) | .accountId] | if length > 0 then . else null end'
             adminGroups: '[.admins.groups[]? | select(.name != null) | .name] | if length > 0 then . else null end'
           relations:
-            project: .location.projectKey // null
+            project: '.__projectKeys // null'
