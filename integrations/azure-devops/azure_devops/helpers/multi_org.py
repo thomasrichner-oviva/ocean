@@ -15,7 +15,7 @@ from azure_devops.client.client_manager import AzureDevopsClientManager
 from azure_devops.misc import extract_org_name_from_url
 
 
-CONCURRENT_ORG_RESYNCS = 5
+CONCURRENT_ORG_RESYNCS = 3
 
 OrgHandler = Callable[[AzureDevopsClient], ASYNC_GENERATOR_RESYNC_TYPE]
 

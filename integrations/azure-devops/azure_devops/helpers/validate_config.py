@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 _MODE_HINT = (
     "Azure DevOps integration requires either:\n"
-    "  (a) organizationUrl + personalAccessToken for legacy single-org mode, or\n"
+    "  (a) organizationUrl + personalAccessToken for single-org mode, or\n"
     "  (b) organizationUrls + clientId + clientSecret + tenantId for "
     "Service Principal multi-org mode."
 )
@@ -20,7 +20,7 @@ def validate_azure_devops_config(
     """Validate Azure DevOps integration config at startup.
 
     Exactly one of the two modes must be configured:
-    - legacy single-org PAT, or
+    - single-org PAT, or
     - Service Principal multi-org.
     """
     is_single_org = bool(organization_url) and bool(personal_access_token)
@@ -37,7 +37,7 @@ def validate_azure_devops_config(
     if is_single_org and has_any_sp_field:
         raise ValueError(
             "Azure DevOps integration config mixes single-org fields with "
-            "Service Principal fields. Pick one mode.\n" + _MODE_HINT
+            f"Service Principal fields.\n{_MODE_HINT}"
         )
 
     if has_all_sp_fields:
