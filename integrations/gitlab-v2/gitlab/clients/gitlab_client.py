@@ -808,7 +808,7 @@ class GitLabClient:
         query: str,
         skip_parsing: bool = False,
     ) -> AsyncIterator[list[dict[str, Any]]]:
-        logger.debug(
+        logger.info(
             f"Starting search in group '{group_id}' for query '{query}' with scope '{scope}'"
         )
         params = {"scope": scope, "search": query, "search_type": "advanced"}
@@ -818,7 +818,7 @@ class GitLabClient:
             async for file_batch in self.rest.get_paginated_resource(
                 path, params=params
             ):
-                logger.debug(f"Found {len(file_batch)} files in group '{group_id}'")
+                logger.info(f"Found {len(file_batch)} files in group '{group_id}'")
                 processed_batch = await self._process_file_batch(
                     file_batch, group_id, skip_parsing
                 )
