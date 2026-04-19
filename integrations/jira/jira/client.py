@@ -163,7 +163,7 @@ class JiraClient(OAuthClient):
 
         raise ValueError(
             f"Could not resolve cloud ID for Jira site '{self.jira_url}'. "
-            f"Ensure the configured jiraHost matches one of the accessible sites "
+            f"Ensure the configured jira url matches one of the accessible sites "
             f"for this OAuth token."
         )
 
