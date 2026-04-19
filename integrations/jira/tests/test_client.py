@@ -962,3 +962,142 @@ async def test_get_paginated_boards_returns_boards_with_null_account_ids(
         # Raw data is returned intact — mapping layer does the filtering
         assert board["admins"]["users"][0]["accountId"] is None
         assert board["admins"]["users"][1]["accountId"] == "abc123"
+
+
+@pytest.mark.asyncio
+async def test_successfully_resolves_agile_url_for_basic_auth(
+    mock_jira_client: JiraClient,
+) -> None:
+    agile_url = await mock_jira_client._get_agile_api_url()
+    assert agile_url == f"{mock_jira_client.jira_rest_url}/agile/1.0"
+
+
+@pytest.mark.asyncio
+async def test_successfully_resolves_agile_url_for_oauth(
+    mock_jira_client: JiraClient,
+) -> None:
+    mock_cloud_id = "33f08530-afd8-42fd-82cc-1dd5ebfeece8"
+
+    with patch.object(mock_jira_client, "is_oauth_enabled", return_value=True):
+        mock_jira_client._agile_api_url = None
+        with patch.object(
+            mock_jira_client, "_get_cloud_id", new_callable=AsyncMock
+        ) as mock_get_cloud_id:
+            mock_get_cloud_id.return_value = mock_cloud_id
+            agile_url = await mock_jira_client._get_agile_api_url()
+
+    assert (
+        agile_url == f"https://api.atlassian.com/ex/jira/{mock_cloud_id}/rest/agile/1.0"
+    )
+
+
+@pytest.mark.asyncio
+async def test_successfully_resolves_agile_url_for_oauth_uses_cache_on_subsequent_calls(
+    mock_jira_client: JiraClient,
+) -> None:
+    """_get_agile_api_url must only resolve cloud ID once — subsequent calls use cache."""
+    mock_cloud_id = "33f08530-afd8-42fd-82cc-1dd5ebfeece8"
+
+    with patch.object(
+        mock_jira_client, "_get_cloud_id", new_callable=AsyncMock
+    ) as mock_get_cloud_id:
+        mock_get_cloud_id.return_value = mock_cloud_id
+        mock_jira_client._agile_api_url = None
+
+        await mock_jira_client._get_agile_api_url()
+        await mock_jira_client._get_agile_api_url()
+        await mock_jira_client._get_agile_api_url()
+
+    mock_get_cloud_id.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_can_successfully_get_cloud_id_for_oauth(
+    mock_jira_client: JiraClient,
+) -> None:
+    mock_resources = [
+        {
+            "id": "33f08530-afd8-42fd-82cc-1dd5ebfeece8",
+            "url": "https://example.atlassian.net",
+            "name": "example",
+            "scopes": ["read:board-scope:jira-software"],
+            "avatarUrl": "https://cdn.example.com/avatar.png",
+        }
+    ]
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_resources
+
+        cloud_id = await mock_jira_client._get_cloud_id()
+
+    assert cloud_id == "33f08530-afd8-42fd-82cc-1dd5ebfeece8"
+    mock_request.assert_called_once_with(
+        "GET",
+        "https://api.atlassian.com/oauth/token/accessible-resources",
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_cloud_id_raises_value_error_when_jira_url_not_in_accessible_resources(
+    mock_jira_client: JiraClient,
+) -> None:
+    """_get_cloud_id must raise ValueError if none of the accessible resources
+    match the configured jira_url — prevents silent misconfiguration."""
+    mock_resources = [
+        {
+            "id": "some-other-cloud-id",
+            "url": "https://completely-different-org.atlassian.net",
+            "name": "other",
+            "scopes": [],
+            "avatarUrl": "",
+        }
+    ]
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_resources
+
+        with pytest.raises(ValueError, match="Could not resolve cloud ID"):
+            await mock_jira_client._get_cloud_id()
+
+
+@pytest.mark.asyncio
+async def test_get_cloud_id_handles_trailing_slash_in_jira_url(
+    mock_jira_client: JiraClient,
+) -> None:
+    """URL comparison must be slash-normalized — trailing slashes must not cause a mismatch."""
+    mock_resources = [
+        {
+            "id": "33f08530-afd8-42fd-82cc-1dd5ebfeece8",
+            "url": "https://example.atlassian.net/",
+            "name": "example",
+            "scopes": [],
+            "avatarUrl": "",
+        }
+    ]
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_resources
+
+        cloud_id = await mock_jira_client._get_cloud_id()
+
+    assert cloud_id == "33f08530-afd8-42fd-82cc-1dd5ebfeece8"
+
+
+@pytest.mark.asyncio
+async def test_get_cloud_id_raises_when_accessible_resources_returns_empty_list(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Empty accessible-resources response must raise ValueError, not IndexError."""
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = []
+
+        with pytest.raises(ValueError, match="Could not resolve cloud ID"):
+            await mock_jira_client._get_cloud_id()

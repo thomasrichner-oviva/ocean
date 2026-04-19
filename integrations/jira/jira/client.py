@@ -82,8 +82,13 @@ class JiraClient(OAuthClient):
             self.webhooks_url = f"{self.jira_rest_url}/webhooks/1.0/webhook"
 
         self.api_url = f"{self.jira_rest_url}/api/3"
-        self.agile_api_url = f"{self.jira_rest_url}/agile/1.0"
         self.teams_base_url = f"{self.jira_url}/gateway/api/public/teams/v1/org"
+
+        # For basic auth, agile URL is known immediately.
+        # For OAuth, it requires a cloud ID resolved via API - set in _get_agile_api_url()
+        self._agile_api_url: str | None = (
+            None if self.is_oauth_enabled() else f"{self.jira_rest_url}/agile/1.0"
+        )
 
         self._rate_limiter = JiraRateLimiter(max_concurrent=MAX_CONCURRENT_REQUESTS)
         self.client = OceanAsyncClient(
@@ -107,6 +112,46 @@ class JiraClient(OAuthClient):
                 "OAuth token file was not available; falling back to configured Jira token for bearer auth"
             )
             return BearerAuth(self.jira_token)
+
+    async def _get_agile_api_url(self) -> str:
+        """Return the Agile REST API base URL for the current auth scheme.
+
+        For basic auth this is known at construction time.
+        For OAuth, the cloud ID must be resolved once via the accessible-resources
+        endpoint and the result is cached on the instance.
+        """
+        if self._agile_api_url is not None:
+            return self._agile_api_url
+
+        cloud_id = await self._get_cloud_id()
+        self._agile_api_url = (
+            f"https://api.atlassian.com/ex/jira/{cloud_id}/rest/agile/1.0"
+        )
+        logger.debug(f"Resolved agile API URL: {self._agile_api_url}")
+        return self._agile_api_url
+
+    async def _get_cloud_id(self) -> str:
+        """
+        Resolve the Atlassian cloud ID for the configured Jira site.
+
+        See: https://developer.atlassian.com/cloud/oauth/getting-started/making-calls-to-api/#cloud-id
+        """
+        resources = await self._send_api_request(
+            "GET",
+            "https://api.atlassian.com/oauth/token/accessible-resources",
+        )
+        normalized_jira_url = self.jira_url.rstrip("/")
+        for resource in resources:
+            if resource.get("url", "").rstrip("/") == normalized_jira_url:
+                cloud_id: str = resource["id"]
+                logger.debug(f"Resolved cloud ID {cloud_id} for {self.jira_url}")
+                return cloud_id
+
+        raise ValueError(
+            f"Could not resolve cloud ID for Jira site '{self.jira_url}'. "
+            f"Ensure the configured jiraHost matches one of the accessible sites "
+            f"for this OAuth token."
+        )
 
     def refresh_request_auth_creds(self, request: httpx.Request) -> httpx.Request:
         logger.debug(
@@ -557,7 +602,7 @@ class JiraClient(OAuthClient):
         self, params: dict[str, Any] | None = None
     ) -> AsyncGenerator[list[dict[str, Any]], None]:
         logger.info("Fetching boards from Jira")
-        endpoint = f"{self.agile_api_url}/board"
+        endpoint = f"{self._agile_api_url}/board"
 
         async for board_batch in self._get_agile_paginated_data(
             endpoint, initial_params=params
