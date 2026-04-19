@@ -29,9 +29,7 @@ class MskClusterExporter(IResourceExporter):
             inspector = ResourceInspector(
                 proxy.client, self._actions_map(), lambda: self._model_cls()
             )
-            response = await inspector.inspect(
-                [options.cluster_arn], options.include
-            )
+            response = await inspector.inspect([options.cluster_arn], options.include)
 
             return response[0] if response else {}
 

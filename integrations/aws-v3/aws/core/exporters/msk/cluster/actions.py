@@ -21,7 +21,9 @@ class DescribeClusterAction(Action):
         results: List[Dict[str, Any]] = []
         for idx, result in enumerate(cluster_results):
             if isinstance(result, Exception):
-                cluster_arn = cluster_arns[idx] if idx < len(cluster_arns) else "unknown"
+                cluster_arn = (
+                    cluster_arns[idx] if idx < len(cluster_arns) else "unknown"
+                )
                 if is_recoverable_aws_exception(result):
                     logger.warning(
                         f"Skipping MSK cluster '{cluster_arn}' due to error: {result}"

@@ -1,4 +1,6 @@
+from typing import Any
 from unittest.mock import AsyncMock
+
 import pytest
 
 from aws.core.exporters.msk.cluster.actions import (
@@ -28,7 +30,7 @@ class TestDescribeClusterAction:
             "arn:aws:kafka:us-west-2:123456789012:cluster/prod-cluster/def456",
         ]
 
-        def mock_describe_cluster(ClusterArn: str) -> dict:
+        def mock_describe_cluster(ClusterArn: str) -> dict[str, Any]:
             cluster_name = ClusterArn.split("/")[1]
             return {
                 "ClusterInfo": {
