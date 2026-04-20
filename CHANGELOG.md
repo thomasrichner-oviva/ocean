@@ -6,19 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!-- towncrier release notes start -->
-## 0.41.0 (2026-04-20)
 
-### Improvements
-
-- Implemented health routes for liveness and readiness to deprecate the current /docs usage
-
-
-## 0.40.8 (2026-04-20)
+## 0.41.1 (2026-04-20)
 
 ### Bug Fixes
 
 - Ocean CLI would now be able to create private integrations with working docker file (all the required scripts are now added to the scaffold)
 
+## 0.41.0 (2026-04-20)
+
+### Improvements
+
+- Implemented health routes for liveness and readiness to deprecate the current /docs usage
 
 ## 0.40.7 (2026-04-15)
 
