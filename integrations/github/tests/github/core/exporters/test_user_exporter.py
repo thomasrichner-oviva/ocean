@@ -47,7 +47,7 @@ def mock_port_app_config() -> GithubPortAppConfig:
         resources=[
             GithubUserConfig(
                 kind="user",
-                selector=Selector(query="true"),
+                selector=GithubUserSelector(query="true"),
                 port=PortResourceConfig(
                     entity=MappingsConfig(
                         mappings=EntityMapping(
