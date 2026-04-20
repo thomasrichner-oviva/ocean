@@ -261,6 +261,7 @@ class TestBoardWebhookProcessorHandleEvent:
         ) as mock_create_client:
             mock_client = AsyncMock()
             mock_client.get_single_board = AsyncMock(return_value=MOCK_BOARD)
+            mock_client.enrich_board_with_projects = AsyncMock(return_value=MOCK_BOARD)
             mock_create_client.return_value = mock_client
 
             result = await board_processor.handle_event(payload, resource_config)
@@ -268,6 +269,7 @@ class TestBoardWebhookProcessorHandleEvent:
         assert result.updated_raw_results == [MOCK_BOARD]
         assert result.deleted_raw_results == []
         mock_client.get_single_board.assert_called_once_with(MOCK_BOARD["id"])
+        mock_client.enrich_board_with_projects.assert_called_once_with(MOCK_BOARD)
 
     @pytest.mark.asyncio
     async def test_board_updated_fetches_and_returns_updated_raw_results(
@@ -285,12 +287,14 @@ class TestBoardWebhookProcessorHandleEvent:
         ) as mock_create_client:
             mock_client = AsyncMock()
             mock_client.get_single_board = AsyncMock(return_value=MOCK_BOARD)
+            mock_client.enrich_board_with_projects = AsyncMock(return_value=MOCK_BOARD)
             mock_create_client.return_value = mock_client
 
             result = await board_processor.handle_event(payload, resource_config)
 
         assert result.updated_raw_results == [MOCK_BOARD]
         assert result.deleted_raw_results == []
+        mock_client.enrich_board_with_projects.assert_called_once_with(MOCK_BOARD)
 
     @pytest.mark.asyncio
     async def test_board_updated_with_admins_returns_full_board(
@@ -303,6 +307,10 @@ class TestBoardWebhookProcessorHandleEvent:
             "webhookEvent": "board_updated",
             "board": MOCK_BOARD,
         }
+        enriched_board_with_admins = {
+            **MOCK_BOARD_WITH_ADMINS,
+            "__projectKeys": ["PORT"],
+        }
 
         with patch(
             "webhook_processors.board_webhook_processor.create_jira_client"
@@ -311,12 +319,16 @@ class TestBoardWebhookProcessorHandleEvent:
             mock_client.get_single_board = AsyncMock(
                 return_value=MOCK_BOARD_WITH_ADMINS
             )
+            mock_client.enrich_board_with_projects = AsyncMock(
+                return_value=enriched_board_with_admins
+            )
             mock_create_client.return_value = mock_client
 
             result = await board_processor.handle_event(payload, resource_config)
 
-        assert result.updated_raw_results == [MOCK_BOARD_WITH_ADMINS]
+        assert result.updated_raw_results == [enriched_board_with_admins]
         assert "admins" in result.updated_raw_results[0]
+        assert "__projectKeys" in result.updated_raw_results[0]
 
     @pytest.mark.asyncio
     async def test_board_not_found_after_create_returns_empty_results(
@@ -341,3 +353,83 @@ class TestBoardWebhookProcessorHandleEvent:
 
         assert result.updated_raw_results == []
         assert result.deleted_raw_results == []
+
+
+@pytest.mark.asyncio
+async def test_board_created_enriches_board_with_project_keys(
+    board_processor: BoardWebhookProcessor,
+    resource_config: ResourceConfig,
+) -> None:
+    """board_created webhook must enrich board with __projectKeys before upsert
+    to prevent project relation from being overwritten with null."""
+    payload: dict[str, Any] = {
+        "webhookEvent": "board_created",
+        "board": MOCK_BOARD,
+    }
+    enriched_board = {**MOCK_BOARD, "__projectKeys": ["PORT"]}
+
+    with patch(
+        "webhook_processors.board_webhook_processor.create_jira_client"
+    ) as mock_create_client:
+        mock_client = AsyncMock()
+        mock_client.get_single_board = AsyncMock(return_value=MOCK_BOARD)
+        mock_client.enrich_board_with_projects = AsyncMock(return_value=enriched_board)
+        mock_create_client.return_value = mock_client
+
+        result = await board_processor.handle_event(payload, resource_config)
+
+    assert result.updated_raw_results == [enriched_board]
+    assert "__projectKeys" in result.updated_raw_results[0]
+    mock_client.enrich_board_with_projects.assert_called_once_with(MOCK_BOARD)
+
+
+@pytest.mark.asyncio
+async def test_board_updated_enriches_board_with_project_keys(
+    board_processor: BoardWebhookProcessor,
+    resource_config: ResourceConfig,
+) -> None:
+    """board_updated webhook must enrich board with __projectKeys before upsert
+    to prevent project relation from being overwritten with null."""
+    payload: dict[str, Any] = {
+        "webhookEvent": "board_updated",
+        "board": MOCK_BOARD,
+    }
+    enriched_board = {**MOCK_BOARD, "__projectKeys": ["PORT", "DEMO"]}
+
+    with patch(
+        "webhook_processors.board_webhook_processor.create_jira_client"
+    ) as mock_create_client:
+        mock_client = AsyncMock()
+        mock_client.get_single_board = AsyncMock(return_value=MOCK_BOARD)
+        mock_client.enrich_board_with_projects = AsyncMock(return_value=enriched_board)
+        mock_create_client.return_value = mock_client
+
+        result = await board_processor.handle_event(payload, resource_config)
+
+    assert result.updated_raw_results == [enriched_board]
+    assert result.updated_raw_results[0]["__projectKeys"] == ["PORT", "DEMO"]
+    mock_client.enrich_board_with_projects.assert_called_once_with(MOCK_BOARD)
+
+
+@pytest.mark.asyncio
+async def test_board_deleted_does_not_enrich_board_with_project_keys(
+    board_processor: BoardWebhookProcessor,
+    resource_config: ResourceConfig,
+) -> None:
+    """board_deleted webhook must not call enrich_board_with_projects
+    since deleted entities don't need relation data."""
+    payload: dict[str, Any] = {
+        "webhookEvent": "board_deleted",
+        "board": MOCK_BOARD,
+    }
+
+    with patch(
+        "webhook_processors.board_webhook_processor.create_jira_client"
+    ) as mock_create_client:
+        mock_client = AsyncMock()
+        mock_create_client.return_value = mock_client
+
+        result = await board_processor.handle_event(payload, resource_config)
+
+    assert result.deleted_raw_results == [MOCK_BOARD]
+    mock_client.enrich_board_with_projects.assert_not_called()

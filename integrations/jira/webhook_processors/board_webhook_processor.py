@@ -58,8 +58,9 @@ class BoardWebhookProcessor(AbstractWebhookProcessor):
                 deleted_raw_results=[],
             )
 
-        logger.debug(f"Retrieved board {board_id}")
+        enriched_board = await client.enrich_board_with_projects(item)
+        logger.debug(f"Retrieved and enriched board {board_id}")
         return WebhookEventRawResults(
-            updated_raw_results=[item],
+            updated_raw_results=[enriched_board],
             deleted_raw_results=[],
         )
