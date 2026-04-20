@@ -73,5 +73,5 @@ async def _iterate_one_organization(
     try:
         async for batch in handler(client):
             yield _enrich_batch(batch, org_url, org_name)
-    except Exception as exc:
-        logger.error(f"Failed to resync Azure DevOps organization {org_url}: {exc}")
+    except Exception:
+        logger.exception(f"Failed to resync Azure DevOps organization {org_url}")

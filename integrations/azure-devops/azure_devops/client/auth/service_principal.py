@@ -5,9 +5,6 @@ from typing import Optional
 import httpx
 from httpx import AsyncClient
 from loguru import logger
-from port_ocean.context.ocean import ocean
-from port_ocean.helpers.async_client import OceanAsyncClient
-from port_ocean.helpers.retry import RetryConfig
 from pydantic import BaseModel, PrivateAttr
 
 from azure_devops.client.auth.base import Authenticator
@@ -52,25 +49,21 @@ class ServicePrincipalAuthenticator(Authenticator):
         self._token_lock = asyncio.Lock()
 
     async def apply(self, client: AsyncClient) -> None:
-        token = await self._get_valid_token()
+        token = await self._get_valid_token(client)
         client.auth = None
         client.headers["Authorization"] = f"{token.token_type} {token.access_token}"
 
-    async def _get_valid_token(self) -> EntraIdToken:
+    async def _get_valid_token(self, client: AsyncClient) -> EntraIdToken:
         async with self._token_lock:
             if self._cached_token and not self._cached_token.is_expired:
                 return self._cached_token
-            self._cached_token = await self._fetch_token()
+            self._cached_token = await self._fetch_token(client)
             logger.debug(
                 "New Entra ID token acquired for Azure DevOps Service Principal"
             )
             return self._cached_token
 
-    async def _fetch_token(self) -> EntraIdToken:
-        http_client = OceanAsyncClient(
-            retry_config=RetryConfig(retry_after_headers=["Retry-After"]),
-            timeout=ocean.config.client_timeout,
-        )
+    async def _fetch_token(self, client: AsyncClient) -> EntraIdToken:
         data = {
             "grant_type": "client_credentials",
             "client_id": self._client_id,
@@ -78,7 +71,7 @@ class ServicePrincipalAuthenticator(Authenticator):
             "scope": AZURE_DEVOPS_DEFAULT_SCOPE,
         }
         try:
-            response = await http_client.post(
+            response = await client.post(
                 self._token_url,
                 data=data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},

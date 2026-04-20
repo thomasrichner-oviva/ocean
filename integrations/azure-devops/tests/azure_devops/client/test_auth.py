@@ -13,8 +13,7 @@ Covered behavior:
 
 import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -92,11 +91,7 @@ class TestServicePrincipalAuthenticator:
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=mock_response)
 
-        with patch(
-            "azure_devops.client.auth.service_principal.OceanAsyncClient",
-            return_value=mock_client,
-        ):
-            token = await auth._fetch_token()
+        token = await auth._fetch_token(mock_client)
 
         assert token.access_token == "fresh-token"
         assert token.expires_in == 3600
@@ -133,12 +128,8 @@ class TestServicePrincipalAuthenticator:
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(return_value=error_response)
 
-        with patch(
-            "azure_devops.client.auth.service_principal.OceanAsyncClient",
-            return_value=mock_client,
-        ):
-            with pytest.raises(httpx.HTTPStatusError):
-                await auth._fetch_token()
+        with pytest.raises(httpx.HTTPStatusError):
+            await auth._fetch_token(mock_client)
 
     @pytest.mark.asyncio
     async def test_cached_token_reused_within_expiry(self) -> None:
@@ -151,7 +142,8 @@ class TestServicePrincipalAuthenticator:
         )
         auth._fetch_token = fetch_mock  # type: ignore[method-assign]
 
-        result = await auth._get_valid_token()
+        client = AsyncMock()
+        result = await auth._get_valid_token(client)
 
         assert result is cached
         fetch_mock.assert_not_awaited()
@@ -167,7 +159,8 @@ class TestServicePrincipalAuthenticator:
         fetch_mock = AsyncMock(return_value=fresh)
         auth._fetch_token = fetch_mock  # type: ignore[method-assign]
 
-        result = await auth._get_valid_token()
+        client = AsyncMock()
+        result = await auth._get_valid_token(client)
 
         assert result is fresh
         assert auth._cached_token is fresh
@@ -180,7 +173,7 @@ class TestServicePrincipalAuthenticator:
         auth = self._build()
         call_count = 0
 
-        async def fake_fetch() -> EntraIdToken:
+        async def fake_fetch(client: AsyncClient) -> EntraIdToken:
             nonlocal call_count
             call_count += 1
             # Yield the event loop so all waiters queue on the lock before
@@ -193,7 +186,10 @@ class TestServicePrincipalAuthenticator:
 
         auth._fetch_token = fake_fetch  # type: ignore[method-assign]
 
-        results = await asyncio.gather(*(auth._get_valid_token() for _ in range(5)))
+        client = AsyncMock()
+        results = await asyncio.gather(
+            *(auth._get_valid_token(client) for _ in range(5))
+        )
 
         assert call_count == 1
         assert all(t.access_token == "token-1" for t in results)
@@ -232,21 +228,3 @@ class TestServicePrincipalAuthenticator:
             fetch_mock.assert_awaited_once()
         finally:
             await client.aclose()
-
-
-@pytest.fixture(autouse=True)
-def _prevent_real_token_fetch(monkeypatch: pytest.MonkeyPatch) -> Any:
-    """Belt-and-suspenders: if any test forgets to mock, crash loudly rather
-    than hitting Microsoft."""
-
-    def _boom(*args: Any, **kwargs: Any) -> None:
-        raise AssertionError(
-            "Test attempted to instantiate a real OceanAsyncClient for the "
-            "Entra ID token endpoint — mock OceanAsyncClient in your test."
-        )
-
-    # Only tests that explicitly patch this path bypass the guard.
-    monkeypatch.setattr(
-        "azure_devops.client.auth.service_principal.OceanAsyncClient",
-        _boom,
-    )
