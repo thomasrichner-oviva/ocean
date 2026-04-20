@@ -3,7 +3,7 @@ from enum import StrEnum
 
 class ObjectKind(StrEnum):
     COMPONENT = "component"
-    API = "api"
+    API = "API"
     GROUP = "group"
     USER = "user"
     SYSTEM = "system"
