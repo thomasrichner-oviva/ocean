@@ -14,7 +14,7 @@ from github.core.exporters.team_exporter import (
     GraphQLTeamWithMembersExporter,
 )
 from github.core.options import ListTeamOptions
-from integration import GithubPortAppConfig, GithubTeamConfig, GithubTeamSector
+from integration import GithubPortAppConfig, GithubTeamConfig, GithubTeamSelector
 from port_ocean.context.event import event_context
 from github.core.options import SingleTeamOptions
 
@@ -49,7 +49,7 @@ def mock_port_app_config() -> GithubPortAppConfig:
         resources=[
             GithubTeamConfig(
                 kind="team",
-                selector=GithubTeamSector(query="true"),
+                selector=GithubTeamSelector(query="true"),
                 port=PortResourceConfig(
                     entity=MappingsConfig(
                         mappings=EntityMapping(
@@ -74,7 +74,11 @@ class TestRestTeamExporter:
             rest_client, "send_api_request", return_value=TEST_TEAMS[0]
         ) as mock_request:
             team = await exporter.get_resource(
-                SingleTeamOptions(organization="test-org", slug="team-alpha")
+                SingleTeamOptions(
+                    organization="test-org",
+                    slug="team-alpha",
+                    include_saml_email=False,
+                )
             )
 
             assert team == TEST_TEAMS[0]
@@ -99,7 +103,10 @@ class TestRestTeamExporter:
                 teams: list[list[dict[str, Any]]] = [
                     batch
                     async for batch in exporter.get_paginated_resources(
-                        ListTeamOptions(organization="test-org")
+                        ListTeamOptions(
+                            organization="test-org",
+                            include_saml_email=False,
+                        )
                     )
                 ]
 
@@ -254,11 +261,21 @@ class TestGraphQLTeamExporter:
 
         exporter = GraphQLTeamWithMembersExporter(graphql_client)
 
-        with patch.object(
-            graphql_client, "send_api_request", new=mock_send_api_request
+        # This test is not about SAML enrichment; stub it so it doesn't
+        # consume `send_api_request` via GraphQL pagination.
+        with (
+            patch.object(graphql_client, "send_api_request", new=mock_send_api_request),
+            patch(
+                "github.helpers.utils.get_saml_identities",
+                new=AsyncMock(return_value={}),
+            ),
         ):
             team = await exporter.get_resource(
-                SingleTeamOptions(organization="test-org", slug="team-alpha")
+                SingleTeamOptions(
+                    organization="test-org",
+                    slug="team-alpha",
+                    include_saml_email=False,
+                )
             )
 
             assert team == TEAM_ALPHA_RESOLVED
@@ -300,13 +317,25 @@ class TestGraphQLTeamExporter:
         )
 
         exporter = GraphQLTeamWithMembersExporter(graphql_client)
-        with patch.object(
-            graphql_client,
-            "send_api_request",
-            new=AsyncMock(return_value=mock_response_data),
-        ) as mock_request:
+        # This test is not about SAML enrichment; stub it so it doesn't
+        # trigger GraphQL pagination for external identities.
+        with (
+            patch.object(
+                graphql_client,
+                "send_api_request",
+                new=AsyncMock(return_value=mock_response_data),
+            ) as mock_request,
+            patch(
+                "github.helpers.utils.get_saml_identities",
+                new=AsyncMock(return_value={}),
+            ),
+        ):
             team = await exporter.get_resource(
-                SingleTeamOptions(organization="test-org", slug="team-beta")
+                SingleTeamOptions(
+                    organization="test-org",
+                    slug="team-beta",
+                    include_saml_email=False,
+                )
             )
 
             assert team == TEAM_BETA_RESOLVED
@@ -339,11 +368,18 @@ class TestGraphQLTeamExporter:
             patch.object(
                 exporter, "get_paginated_members", new=mock_fetch_other_members
             ) as mock_exporter_fetch_members,
+            patch(
+                "github.helpers.utils.get_saml_identities",
+                new=AsyncMock(return_value={}),
+            ),
         ):
             result_batches: list[list[dict[str, Any]]] = [
                 batch
                 async for batch in exporter.get_paginated_resources(
-                    ListTeamOptions(organization="test-org")
+                    ListTeamOptions(
+                        organization="test-org",
+                        include_saml_email=False,
+                    )
                 )
             ]
 
@@ -447,7 +483,11 @@ class TestGraphQLTeamWithMembersExporterSamlEnrichment:
             ) as mock_paginated,
         ):
             team = await exporter.get_resource(
-                SingleTeamOptions(organization="test-org", slug="team-noemail")
+                SingleTeamOptions(
+                    organization="test-org",
+                    slug="team-noemail",
+                    include_saml_email=False,
+                )
             )
 
         assert team is not None
@@ -508,7 +548,10 @@ class TestGraphQLTeamWithMembersExporterSamlEnrichment:
                 result_batches: list[list[dict[str, Any]]] = [
                     batch
                     async for batch in exporter.get_paginated_resources(
-                        ListTeamOptions(organization="test-org")
+                        ListTeamOptions(
+                            organization="test-org",
+                            include_saml_email=False,
+                        )
                     )
                 ]
 
