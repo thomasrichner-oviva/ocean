@@ -6,7 +6,13 @@ from httpx import BasicAuth, Request, Response
 from port_ocean.context.ocean import initialize_port_ocean_context
 from port_ocean.exceptions.context import PortOceanContextAlreadyInitializedError
 
-from jira.client import PAGE_SIZE, WEBHOOK_EVENTS, OAUTH2_WEBHOOK_EVENTS, JiraClient
+from jira.client import (
+    PAGE_SIZE,
+    WEBHOOK_EVENTS,
+    OAUTH2_WEBHOOK_EVENTS,
+    BearerAuth,
+    JiraClient,
+)
 from jira.overrides import JiraIssueSelector
 
 
@@ -75,6 +81,21 @@ async def test_send_api_request_failure(mock_jira_client: JiraClient) -> None:
         )
         with pytest.raises(Exception):
             await mock_jira_client._send_api_request("GET", "http://example.com")
+
+
+def test_refresh_request_auth_creds_updates_global_auth(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Token refresh updates request header and default client auth for next requests."""
+    request = Request("GET", "https://example.atlassian.net/rest/api/3/myself")
+    refreshed_auth = BearerAuth("newly_refreshed_token")
+
+    with patch.object(mock_jira_client, "_get_bearer", return_value=refreshed_auth):
+        refreshed_request = mock_jira_client.refresh_request_auth_creds(request)
+
+    assert refreshed_request.headers["Authorization"] == "Bearer newly_refreshed_token"
+    assert mock_jira_client.jira_api_auth is refreshed_auth
+    assert mock_jira_client.client.auth is refreshed_auth
 
 
 @pytest.mark.asyncio
@@ -163,9 +184,10 @@ async def test_get_paginated_issues(mock_jira_client: JiraClient) -> None:
 
         # Verify params were passed correctly
         mock_request.assert_called_with(
-            "GET",
+            "POST",
             f"{mock_jira_client.api_url}/search/jql",
-            params={"jql": "project = TEST"},
+            json={"jql": "project = TEST", "maxResults": PAGE_SIZE},
+            retryable=True,
         )
 
 
@@ -211,9 +233,10 @@ async def test_get_paginated_issues_without_jql_param(
 
         assert len(issues) == 2
         mock_request.assert_called_with(
-            "GET",
+            "POST",
             f"{mock_jira_client.api_url}/search/jql",
-            params={"jql": default_jql},
+            json={"jql": default_jql, "maxResults": PAGE_SIZE},
+            retryable=True,
         )
 
 
@@ -238,9 +261,10 @@ async def test_get_paginated_issues_with_empty_jql(
 
         assert len(issues) == 2
         mock_request.assert_called_with(
-            "GET",
+            "POST",
             f"{mock_jira_client.api_url}/search/jql",
-            params={"jql": custom_jql},
+            json={"jql": custom_jql, "maxResults": PAGE_SIZE},
+            retryable=True,
         )
 
 
@@ -487,8 +511,10 @@ async def test_create_events_webhook_oauth(mock_jira_client: JiraClient) -> None
 
 
 @pytest.mark.asyncio
-async def test_get_reconciled_issues(mock_jira_client: JiraClient) -> None:
-    """Test get_reconciled_issues uses POST with correct body shape."""
+async def test_get_paginated_issues_with_reconcile(
+    mock_jira_client: JiraClient,
+) -> None:
+    """Test get_paginated_issues with reconcileIssues uses correct POST body."""
     issues_data = {
         "issues": [{"key": "TEST-1", "id": "10001", "fields": {"summary": "Test"}}]
     }
@@ -498,11 +524,15 @@ async def test_get_reconciled_issues(mock_jira_client: JiraClient) -> None:
     ) as mock_request:
         mock_request.return_value = issues_data
 
-        result = await mock_jira_client.get_reconciled_issues(
-            jql="project = TEST AND key = TEST-1",
-            issue_ids=[10001],
-            fields="*all",
-        )
+        issues = []
+        async for batch in mock_jira_client.get_paginated_issues(
+            params={
+                "jql": "project = TEST AND key = TEST-1",
+                "fields": "*all",
+                "reconcileIssues": [10001],
+            }
+        ):
+            issues.extend(batch)
 
         mock_request.assert_called_once_with(
             "POST",
@@ -513,27 +543,29 @@ async def test_get_reconciled_issues(mock_jira_client: JiraClient) -> None:
                 "reconcileIssues": [10001],
                 "maxResults": 1,
             },
+            retryable=True,
         )
-        assert len(result) == 1
-        assert result[0]["key"] == "TEST-1"
+        assert len(issues) == 1
+        assert issues[0]["key"] == "TEST-1"
 
 
 @pytest.mark.asyncio
-async def test_get_reconciled_issues_empty_response(
+async def test_get_paginated_issues_with_reconcile_empty_response(
     mock_jira_client: JiraClient,
 ) -> None:
-    """Test get_reconciled_issues returns empty list when no issues found."""
+    """Test get_paginated_issues with reconcileIssues returns empty when no issues found."""
     with patch.object(
         mock_jira_client, "_send_api_request", new_callable=AsyncMock
     ) as mock_request:
         mock_request.return_value = {"issues": []}
 
-        result = await mock_jira_client.get_reconciled_issues(
-            jql="key = NONEXISTENT-1",
-            issue_ids=[99999],
-        )
+        issues = []
+        async for batch in mock_jira_client.get_paginated_issues(
+            params={"jql": "key = NONEXISTENT-1", "reconcileIssues": [99999]}
+        ):
+            issues.extend(batch)
 
-        assert result == []
+        assert issues == []
 
 
 def test_validate_existing_webhook_warns_on_misconfiguration() -> None:
@@ -576,6 +608,40 @@ def test_validate_existing_webhook_no_warnings_when_healthy() -> None:
         mock_logger.warning.assert_not_called()
 
 
+@pytest.mark.asyncio
+async def test_get_paginated_versions(mock_jira_client: JiraClient) -> None:
+    """Test get_paginated_versions iterates over projects and yields enriched version batches."""
+
+    versions_response: dict[str, Any] = {
+        "values": [
+            {"id": 1001, "name": "v1.0"},
+            {"id": 1002, "name": "v1.1"},
+        ],
+        "total": 2,
+    }
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.side_effect = [
+            versions_response,
+        ]
+
+        all_versions: list[dict[str, Any]] = []
+        async for batch in mock_jira_client.get_paginated_versions(project_key="PROJ1"):
+            all_versions.extend(batch)
+
+        mock_request.assert_called_once_with(
+            "GET",
+            f"{mock_jira_client.api_url}/project/PROJ1/version",
+            params={"maxResults": PAGE_SIZE, "startAt": 0},
+        )
+        assert len(all_versions) == 2
+        assert all_versions == versions_response["values"]
+        assert all_versions[0]["__projectKey"] == "PROJ1"
+        assert all_versions[1]["__projectKey"] == "PROJ1"
+
+
 def test_jira_issue_selector_default_jql() -> None:
     """Test that JiraIssueSelector uses the correct default JQL when not provided"""
     selector = JiraIssueSelector(query="true")
@@ -590,3 +656,25 @@ def test_jira_issue_selector_default_jql() -> None:
     assert (
         selector.fields == "*all"
     ), f"Expected default fields to be '*all', but got '{selector.fields}'"
+
+
+@pytest.mark.asyncio
+async def test_jql_search_post_request_is_marked_retryable(
+    mock_jira_client: JiraClient,
+) -> None:
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = {"issues": []}
+
+        async for _ in mock_jira_client.get_paginated_issues(
+            params={"jql": "project = TEST"}
+        ):
+            pass
+
+        mock_request.assert_called_once_with(
+            "POST",
+            f"{mock_jira_client.api_url}/search/jql",
+            json={"jql": "project = TEST", "maxResults": PAGE_SIZE},
+            retryable=True,
+        )

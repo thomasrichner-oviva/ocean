@@ -1422,6 +1422,37 @@ async def test_generate_releases_will_skip_404(
             assert not releases
 
 
+def test_parse_wiql_with_order_by() -> None:
+    """Test parsing WIQL into filter and ORDER BY parts."""
+    client = AzureDevopsClient("https://fake_org_url.com", "fake_pat", "fake_username")
+
+    # No ORDER BY
+    filter_part, order_part = client._parse_wiql_with_order_by(
+        "[System.State] = 'Active'"
+    )
+    assert filter_part == "[System.State] = 'Active'"
+    assert order_part is None
+
+    # With ORDER BY
+    filter_part, order_part = client._parse_wiql_with_order_by(
+        "[System.State] = 'Active' ORDER BY [System.ChangedDate] Desc"
+    )
+    assert filter_part == "[System.State] = 'Active'"
+    assert order_part == "[System.ChangedDate] Desc"
+
+    # ORDER BY only (no filter)
+    filter_part, order_part = client._parse_wiql_with_order_by(
+        "ORDER BY [System.Id] Asc"
+    )
+    assert filter_part is None
+    assert order_part == "[System.Id] Asc"
+
+    # Empty/None
+    assert client._parse_wiql_with_order_by(None) == (None, None)
+    assert client._parse_wiql_with_order_by("") == (None, None)
+    assert client._parse_wiql_with_order_by("   ") == (None, None)
+
+
 @pytest.mark.asyncio
 async def test_generate_work_items_will_skip_404(mock_event_context: MagicMock) -> None:
     """
@@ -1439,6 +1470,150 @@ async def test_generate_work_items_will_skip_404(mock_event_context: MagicMock) 
             async for item_batch in client.generate_work_items(wiql=None, expand="all"):
                 collected_items.extend(item_batch)
             assert not collected_items
+
+
+@pytest.mark.asyncio
+async def test_generate_work_items_paginates_when_exceeding_20k_limit(
+    mock_event_context: MagicMock,
+) -> None:
+    """
+    Tests that work items are paginated correctly when a project has more than 20K items.
+    Simulates: first WIQL returns 19999 IDs, second WIQL returns 100 IDs (final batch).
+    """
+    from azure_devops.client.azure_devops_client import (
+        MAX_WORK_ITEMS_RESULTS_PER_PROJECT,
+    )
+
+    client = AzureDevopsClient("https://fake_org_url.com", "fake_pat", "fake_username")
+    test_project = {"id": "proj1", "name": "Test Project"}
+
+    # First WIQL batch: 19999 IDs, second WIQL batch: 100 IDs
+    wiql_responses = [
+        {
+            "workItems": [
+                {"id": i} for i in range(1, MAX_WORK_ITEMS_RESULTS_PER_PROJECT + 1)
+            ]
+        },
+        {
+            "workItems": [
+                {"id": i}
+                for i in range(
+                    MAX_WORK_ITEMS_RESULTS_PER_PROJECT + 1,
+                    MAX_WORK_ITEMS_RESULTS_PER_PROJECT + 101,
+                )
+            ]
+        },
+    ]
+    wiql_call_count = 0
+
+    def create_work_item(wi_id: int) -> Dict[str, Any]:
+        return {"id": wi_id, "fields": {"System.Title": f"Work Item {wi_id}"}}
+
+    async def mock_send_request(
+        method: str, url: str, **kwargs: Any
+    ) -> Optional[Response]:
+        nonlocal wiql_call_count
+        if "wit/wiql" in url:
+            response_data = wiql_responses[wiql_call_count]
+            wiql_call_count += 1
+            return Response(
+                status_code=200,
+                request=Request(method, url),
+                json=response_data,
+            )
+        if "wit/workitems" in url:
+            params = kwargs.get("params", {})
+            ids_param = params.get("ids", "")
+            ids = [int(x) for x in ids_param.split(",") if x]
+            work_items = [create_work_item(wi_id) for wi_id in ids]
+            return Response(
+                status_code=200,
+                request=Request(method, url),
+                json={"value": work_items},
+            )
+        return Response(status_code=404, request=Request(method, url))
+
+    async def mock_generate_projects() -> AsyncGenerator[List[Dict[str, Any]], None]:
+        yield [test_project]
+
+    async with event_context("test_event"):
+        with (
+            patch.object(
+                client, "generate_projects", side_effect=mock_generate_projects
+            ),
+            patch.object(client, "send_request", side_effect=mock_send_request),
+        ):
+            collected_items: List[Dict[str, Any]] = []
+            async for item_batch in client.generate_work_items(wiql=None, expand="All"):
+                collected_items.extend(item_batch)
+
+            # Should have 19999 + 100 = 20099 work items total
+            expected_total = MAX_WORK_ITEMS_RESULTS_PER_PROJECT + 100
+            assert len(collected_items) == expected_total
+            assert wiql_call_count == 2, "Should make 2 WIQL calls for pagination"
+
+
+@pytest.mark.asyncio
+async def test_generate_work_items_with_user_order_by_skips_pagination(
+    mock_event_context: MagicMock,
+) -> None:
+    """
+    When user's WIQL contains ORDER BY, we use their query as-is and skip pagination.
+    Only one WIQL call is made (no ID-range pagination).
+    """
+    client = AzureDevopsClient("https://fake_org_url.com", "fake_pat", "fake_username")
+    test_project = {"id": "proj1", "name": "Test Project"}
+
+    wiql_call_count = 0
+
+    def create_work_item(wi_id: int) -> Dict[str, Any]:
+        return {"id": wi_id, "fields": {"System.Title": f"Work Item {wi_id}"}}
+
+    async def mock_send_request(
+        method: str, url: str, **kwargs: Any
+    ) -> Optional[Response]:
+        nonlocal wiql_call_count
+        if "wit/wiql" in url:
+            wiql_call_count += 1
+            # Return 100 work items (single batch)
+            return Response(
+                status_code=200,
+                request=Request(method, url),
+                json={"workItems": [{"id": i} for i in range(1, 101)]},
+            )
+        if "wit/workitems" in url:
+            params = kwargs.get("params", {})
+            ids_param = params.get("ids", "")
+            ids = [int(x) for x in ids_param.split(",") if x]
+            work_items = [create_work_item(wi_id) for wi_id in ids]
+            return Response(
+                status_code=200,
+                request=Request(method, url),
+                json={"value": work_items},
+            )
+        return Response(status_code=404, request=Request(method, url))
+
+    async def mock_generate_projects() -> AsyncGenerator[List[Dict[str, Any]], None]:
+        yield [test_project]
+
+    async with event_context("test_event"):
+        with (
+            patch.object(
+                client, "generate_projects", side_effect=mock_generate_projects
+            ),
+            patch.object(client, "send_request", side_effect=mock_send_request),
+        ):
+            collected_items: List[Dict[str, Any]] = []
+            async for item_batch in client.generate_work_items(
+                wiql="[System.State] = 'Active' ORDER BY [System.ChangedDate] Desc",
+                expand="All",
+            ):
+                collected_items.extend(item_batch)
+
+            assert len(collected_items) == 100
+            assert (
+                wiql_call_count == 1
+            ), "Should make only 1 WIQL call when user has ORDER BY"
 
 
 @pytest.mark.asyncio
@@ -1688,7 +1863,7 @@ async def test_generate_pipeline_stages(mock_event_context: MagicMock) -> None:
         yield [{"id": "proj1", "name": "Project One"}]
 
     async def mock_generate_builds_for_project(
-        project: Dict[str, Any]
+        project: Dict[str, Any],
     ) -> AsyncGenerator[List[Dict[str, Any]], None]:
         yield [{"id": "build123", "name": "Build 123"}]
 
@@ -3499,13 +3674,13 @@ async def test_fetch_test_runs(mock_event_context: MagicMock) -> None:
     async def mock_generate_projects() -> AsyncGenerator[List[Dict[str, Any]], None]:
         yield [{"id": "proj1", "name": "Project One"}]
 
-    async def mock_get_paginated_by_top_and_continuation_token(
-        url: str, additional_params: Optional[Dict[str, Any]] = None, **kwargs: Any
+    async def mock_get_paginated_by_top_and_skip(
+        url: str, params: Optional[Dict[str, Any]] = None, **kwargs: Any
     ) -> AsyncGenerator[List[Dict[str, Any]], None]:
         if "test/runs" in url and "/results" not in url:
             # Verify that includeRunDetails is set to True
-            assert additional_params is not None
-            assert additional_params.get("includeRunDetails") is True
+            assert params is not None
+            assert params.get("includeRunDetails") is True
             yield EXPECTED_TEST_RUNS
         else:
             yield []
@@ -3516,8 +3691,8 @@ async def test_fetch_test_runs(mock_event_context: MagicMock) -> None:
         ):
             with patch.object(
                 client,
-                "_get_paginated_by_top_and_continuation_token",
-                side_effect=mock_get_paginated_by_top_and_continuation_token,
+                "_get_paginated_by_top_and_skip",
+                side_effect=mock_get_paginated_by_top_and_skip,
             ):
                 # ACT
                 test_runs: List[Dict[str, Any]] = []
@@ -3565,33 +3740,50 @@ async def test_fetch_test_runs_with_results(mock_event_context: MagicMock) -> No
         with patch.object(
             client, "generate_projects", side_effect=mock_generate_projects
         ):
+
+            async def mock_get_paginated_by_top_and_skip(
+                url: str, params: Optional[Dict[str, Any]] = None, **kwargs: Any
+            ) -> AsyncGenerator[List[Dict[str, Any]], None]:
+                if "test/runs" in url and "/results" not in url:
+                    # Verify that includeRunDetails is set to True
+                    assert params is not None
+                    assert params.get("includeRunDetails") is True
+                    yield EXPECTED_TEST_RUNS
+                else:
+                    yield []
+
             with patch.object(
                 client,
                 "_get_paginated_by_top_and_continuation_token",
                 side_effect=mock_get_paginated_by_top_and_continuation_token,
             ):
-                # ACT
-                test_runs: List[Dict[str, Any]] = []
-                async for test_run_batch in client.fetch_test_runs(
-                    include_results=True
+                with patch.object(
+                    client,
+                    "_get_paginated_by_top_and_skip",
+                    side_effect=mock_get_paginated_by_top_and_skip,
                 ):
-                    test_runs.extend(test_run_batch)
+                    # ACT
+                    test_runs: List[Dict[str, Any]] = []
+                    async for test_run_batch in client.fetch_test_runs(
+                        include_results=True
+                    ):
+                        test_runs.extend(test_run_batch)
 
-                # ASSERT
-                assert len(test_runs) == 2
-                assert test_runs[0]["id"] == 1
-                assert test_runs[0]["name"] == "Test Run 1"
-                assert test_runs[0]["project"]["id"] == "proj1"
-                assert "__testResults" in test_runs[0]
-                assert len(test_runs[0]["__testResults"]) == 1
-                assert test_runs[0]["__testResults"][0]["id"] == 100000
+                    # ASSERT
+                    assert len(test_runs) == 2
+                    assert test_runs[0]["id"] == 1
+                    assert test_runs[0]["name"] == "Test Run 1"
+                    assert test_runs[0]["project"]["id"] == "proj1"
+                    assert "__testResults" in test_runs[0]
+                    assert len(test_runs[0]["__testResults"]) == 1
+                    assert test_runs[0]["__testResults"][0]["id"] == 100000
 
-                assert test_runs[1]["id"] == 2
-                assert test_runs[1]["name"] == "Test Run 2"
-                assert test_runs[1]["project"]["id"] == "proj1"
-                assert "__testResults" in test_runs[1]
-                assert len(test_runs[1]["__testResults"]) == 1
-                assert test_runs[1]["__testResults"][0]["id"] == 100001
+                    assert test_runs[1]["id"] == 2
+                    assert test_runs[1]["name"] == "Test Run 2"
+                    assert test_runs[1]["project"]["id"] == "proj1"
+                    assert "__testResults" in test_runs[1]
+                    assert len(test_runs[1]["__testResults"]) == 1
+                    assert test_runs[1]["__testResults"][0]["id"] == 100001
 
 
 @pytest.mark.asyncio
@@ -4215,7 +4407,7 @@ async def test_generate_branches(mock_event_context: MagicMock) -> None:
         ]
 
     async def mock_get_branches_for_repository(
-        repository: Dict[str, Any]
+        repository: Dict[str, Any],
     ) -> AsyncGenerator[List[Dict[str, Any]], None]:
         yield EXPECTED_BRANCHES
 
@@ -4315,3 +4507,273 @@ async def test_get_pipeline_stage() -> None:
             mock_fetch_stages.assert_called_once_with(
                 project, EXPECTED_SINGLE_PIPELINE_RUN
             )
+
+
+@pytest.mark.asyncio
+async def test_get_repository_files_skips_none_downloads() -> None:
+    """When download_single_file returns None, no [None] batch should be yielded."""
+    mock_repo = {
+        "name": "repo1",
+        "id": "repo1-id",
+        "defaultBranch": "refs/heads/main",
+        "project": {"id": "project1-id"},
+    }
+
+    client = AzureDevopsClient("https://dev.azure.com/test", "token")
+
+    async def mock_generate_repositories(
+        include_disabled_repositories: bool = True,
+    ) -> AsyncGenerator[list[dict[str, Any]], None]:
+        yield [mock_repo]
+
+    async def mock__get_files_by_descriptors(
+        repository: dict[str, Any], descriptors: list[PathDescriptor], branch: str
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "path": "/src/main.py",
+                "objectId": "abc123",
+                "gitObjectType": "blob",
+                "isFolder": False,
+                "commitId": "commit123",
+            }
+        ]
+
+    async def mock_download_single_file(
+        file: dict[str, Any], repository: dict[str, Any], branch: str
+    ) -> dict[str, Any] | None:
+        # Simulate a failed/skipped download
+        return None
+
+    client.generate_repositories = mock_generate_repositories  # type: ignore
+    client._get_files_by_descriptors = mock__get_files_by_descriptors  # type: ignore
+    client.download_single_file = mock_download_single_file  # type: ignore
+
+    results = []
+    async for batch in client.generate_files(["src/main.py"]):
+        results.extend(batch)
+
+    assert results == [], "Expected no results when all downloads return None"
+
+
+@pytest.mark.asyncio
+async def test_get_repository_files_mixed_none_and_valid_downloads() -> None:
+    """Only non-None download results should be yielded; None results must be skipped."""
+    mock_repo = {
+        "name": "repo1",
+        "id": "repo1-id",
+        "defaultBranch": "refs/heads/main",
+        "project": {"id": "project1-id"},
+    }
+
+    client = AzureDevopsClient("https://dev.azure.com/test", "token")
+
+    async def mock_generate_repositories(
+        include_disabled_repositories: bool = True,
+    ) -> AsyncGenerator[list[dict[str, Any]], None]:
+        yield [mock_repo]
+
+    async def mock__get_files_by_descriptors(
+        repository: dict[str, Any], descriptors: list[PathDescriptor], branch: str
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "path": "/src/good.py",
+                "objectId": "good123",
+                "gitObjectType": "blob",
+                "isFolder": False,
+                "commitId": "commit123",
+            },
+            {
+                "path": "/src/bad.py",
+                "objectId": "bad123",
+                "gitObjectType": "blob",
+                "isFolder": False,
+                "commitId": "commit123",
+            },
+        ]
+
+    async def mock_download_single_file(
+        file: dict[str, Any], repository: dict[str, Any], branch: str
+    ) -> dict[str, Any] | None:
+        if file["path"] == "/src/bad.py":
+            return None
+        return {
+            "file": {
+                "path": file["path"],
+                "content": {"raw": "# good", "parsed": {}},
+                "size": 10,
+                "objectId": file["objectId"],
+                "isFolder": False,
+            },
+            "repo": repository,
+        }
+
+    client.generate_repositories = mock_generate_repositories  # type: ignore
+    client._get_files_by_descriptors = mock__get_files_by_descriptors  # type: ignore
+    client.download_single_file = mock_download_single_file  # type: ignore
+
+    results = []
+    async for batch in client.generate_files(["src/good.py", "src/bad.py"]):
+        results.extend(batch)
+
+    assert len(results) == 1, "Expected only 1 result; None download must be skipped"
+    assert results[0]["file"]["path"] == "/src/good.py"
+    # Verify None was not included
+    assert all(r is not None for r in results)
+
+
+@pytest.mark.asyncio
+async def test_generate_repository_policies_multiple_repos(
+    mock_event_context: MagicMock,
+) -> None:
+    """Verify generate_repository_policies fetches policies from all repos concurrently."""
+    client = AzureDevopsClient(
+        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
+    )
+
+    async def mock_generate_repositories(
+        *args: Any, **kwargs: Any
+    ) -> AsyncGenerator[List[Dict[str, Any]], None]:
+        yield [
+            {
+                "id": "repo1",
+                "name": "Repo One",
+                "project": {"id": "proj1", "name": "Project One"},
+                "defaultBranch": "refs/heads/main",
+            },
+            {
+                "id": "repo2",
+                "name": "Repo Two",
+                "project": {"id": "proj1", "name": "Project One"},
+                "defaultBranch": "refs/heads/main",
+            },
+            {
+                "id": "repo3",
+                "name": "Repo Three",
+                "project": {"id": "proj2", "name": "Project Two"},
+                "defaultBranch": "refs/heads/main",
+            },
+        ]
+
+    async def mock_send_request(
+        method: str, url: str, **kwargs: Any
+    ) -> Optional[Response]:
+        params = kwargs.get("params", {})
+        repo_id = params.get("repositoryId", "")
+        return Response(
+            status_code=200,
+            json={"value": [{"id": f"policy-{repo_id}", "name": f"Policy-{repo_id}"}]},
+        )
+
+    async with event_context("test_event"):
+        with (
+            patch.object(
+                client,
+                "generate_repositories",
+                side_effect=mock_generate_repositories,
+            ),
+            patch.object(client, "send_request", side_effect=mock_send_request),
+        ):
+            policies: List[Dict[str, Any]] = []
+            async for batch in client.generate_repository_policies():
+                policies.extend(batch)
+
+            policy_ids = {p["id"] for p in policies}
+            assert policy_ids == {"policy-repo1", "policy-repo2", "policy-repo3"}
+            # Verify __repository enrichment
+            for policy in policies:
+                repo_id = policy["id"].replace("policy-", "")
+                assert policy["__repository"]["id"] == repo_id
+
+
+@pytest.mark.asyncio
+async def test_get_release() -> None:
+    client = AzureDevopsClient(
+        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
+    )
+    expected_release = {"id": 42, "name": "Release-42", "status": "active"}
+
+    with patch.object(client, "send_request") as mock_send_request:
+        mock_send_request.return_value = Response(
+            status_code=200, json=expected_release
+        )
+
+        result = await client.get_release("project-123", 42)
+
+        assert result == expected_release
+        mock_send_request.assert_called_once_with(
+            "GET",
+            "https://your_organization_url.com/project-123/_apis/release/releases/42",
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_release_not_found() -> None:
+    client = AzureDevopsClient(
+        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
+    )
+
+    with patch.object(client, "send_request") as mock_send_request:
+        mock_send_request.return_value = None
+
+        result = await client.get_release("project-123", 42)
+
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_release_deployment() -> None:
+    client = AzureDevopsClient(
+        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
+    )
+    expected_deployment = {"id": 99, "deploymentStatus": "succeeded"}
+
+    with patch.object(client, "send_request") as mock_send_request:
+        mock_send_request.return_value = Response(
+            status_code=200, json={"count": 1, "value": [expected_deployment]}
+        )
+
+        result = await client.get_release_deployment("project-123", 10, 5)
+
+        assert result == expected_deployment
+        mock_send_request.assert_called_once_with(
+            "GET",
+            "https://your_organization_url.com/project-123/_apis/release/deployments",
+            params={
+                "deploymentStatus": "all",
+                "releaseId": 10,
+                "definitionEnvironmentId": 5,
+                "$top": 1,
+            },
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_release_deployment_not_found() -> None:
+    client = AzureDevopsClient(
+        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
+    )
+
+    with patch.object(client, "send_request") as mock_send_request:
+        mock_send_request.return_value = Response(
+            status_code=200, json={"count": 0, "value": []}
+        )
+
+        result = await client.get_release_deployment("project-123", 10, 5)
+
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_release_deployment_404() -> None:
+    client = AzureDevopsClient(
+        MOCK_ORG_URL, MOCK_PERSONAL_ACCESS_TOKEN, MOCK_AUTH_USERNAME
+    )
+
+    with patch.object(client, "send_request") as mock_send_request:
+        mock_send_request.return_value = None
+
+        result = await client.get_release_deployment("project-123", 10, 5)
+
+        assert result is None
