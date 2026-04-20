@@ -7,6 +7,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 <!-- towncrier release notes start -->
 
+## 0.40.8 (2026-04-20)
+
+### Bug Fixes
+
+- Ocean CLI would now be able to create private integrations with working docker file (all the required scripts are now added to the scaffold)
+
+
 ## 0.40.7 (2026-04-15)
 
 ### Improvements
