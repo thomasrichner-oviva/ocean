@@ -1366,3 +1366,18 @@ async def test_enrich_board_with_projects_does_not_mutate_original_board_referen
 
     assert id(enriched) == original_id
     assert "__projectKeys" in board
+
+
+@pytest.mark.asyncio
+async def test_enrich_board_with_projects_returns_empty_list_when_board_has_no_id(
+    mock_jira_client: JiraClient,
+) -> None:
+    board: dict[str, Any] = {"name": "Broken board"}
+
+    with patch.object(
+        mock_jira_client, "_send_api_request", new_callable=AsyncMock
+    ) as mock_request:
+        enriched = await mock_jira_client.enrich_board_with_projects(board)
+
+    assert enriched["__projectKeys"] == []
+    mock_request.assert_not_called()

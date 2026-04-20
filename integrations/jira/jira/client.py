@@ -661,7 +661,12 @@ class JiraClient(OAuthClient):
         Args:
             board: The raw board object from the list endpoint.
         """
-        board_id: int = board["id"]
+        board_id = board.get("id")
+        if board_id is None:
+            logger.warning("Board is missing id field, skipping project enrichment")
+            board["__projectKeys"] = []
+            return board
+
         project_keys: list[str] = []
 
         async for project_batch in self.get_board_projects(board_id):

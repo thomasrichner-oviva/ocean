@@ -168,3 +168,21 @@ def test_jira_board_selector_explicit_none_board_type_resolves_to_none() -> None
     )
     assert isinstance(config.resources[0], JiraBoardResourceConfig)
     assert config.resources[0].selector.board_type is None
+
+
+@pytest.mark.parametrize(
+    "invalid_project_key",
+    [
+        "",
+        "   ",
+        "\t",
+        "\n",
+    ],
+)
+def test_jira_board_selector_rejects_blank_project_key(
+    invalid_project_key: str,
+) -> None:
+    with pytest.raises(Exception):
+        JiraBoardSelector.parse_obj(
+            {"query": "true", "projectKey": invalid_project_key}
+        )
