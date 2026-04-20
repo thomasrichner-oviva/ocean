@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- towncrier release notes start -->
 
-## 5.3.7 (2026-04-16)
+## 5.3.7 (2026-04-20)
 
 
 ### Improvements
 
-- Standardized GitHub resource `kind` values in config models/tests to use literal strings (e.g. `repository`, `pull-request`) to ensure consistent/clear logging and stricter schema compliance.
+- Added further context to dispatch event evaluation logs
+- Revised include_relations selector's title and description
 
 
 ## 5.3.6 (2026-04-16)
