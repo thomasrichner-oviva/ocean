@@ -3,11 +3,16 @@ import http
 import os
 import tempfile
 import typing
+from typing import Optional, AsyncGenerator, Any
 from asyncio import BoundedSemaphore
+import google.auth.transport.requests
+import google.oauth2.id_token
+import asyncio
 
 from fastapi import Request, Response
 from loguru import logger
 
+from gcp_core.cloud_function import create_client
 import gcp_core.clients as clients
 from gcp_core.helpers.ratelimiter.fixed_window import FixedWindowLimiter
 from port_ocean.context.ocean import ocean
@@ -193,6 +198,29 @@ async def resync_cloud_resources(kind: str) -> ASYNC_GENERATOR_RESYNC_TYPE:
         async for resources_batch in iterator_resync_method:
             yield resources_batch
 
+@ocean.on_resync(kind="cloud_function") #TODO Thomas
+async def on_resync(kind: str) -> AsyncGenerator[list[dict[str, Any]], None]:
+    port_client = ocean.integration.context.app.port_client
+    agent = f"{port_client.integration_identifier}/{port_client.integration_version}"
+    function_url = ocean.integration_config["function_url"]
+    secrets = ocean.integration_config.get("secrets", {})
+
+    from gcp_core import feed_event
+
+    token_supplier = _get_id_token
+
+    client = create_client(agent, token_supplier, function_url, secrets)
+
+    async for data in client.sync(kind):
+        yield data
+
+async def _get_id_token() -> Optional[str]:
+    """
+    Get OAuth token for the given scope.
+    """
+    audience = ocean.integration_config["function_url"]
+    request = google.auth.transport.requests.Request()
+    return await asyncio.to_thread(google.oauth2.id_token.fetch_id_token, request, audience)
 
 async def process_realtime_event(
     asset_type: str,
